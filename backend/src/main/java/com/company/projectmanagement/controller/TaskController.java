@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.TaskDto;
 import com.company.projectmanagement.service.TaskService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ public class TaskController {
 
     /* ================= CREATE ================= */
     @PostMapping
-    public ResponseEntity<TaskDto> createTask(@RequestBody TaskDto taskDto) {
+    public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto taskDto) {
         return ResponseEntity.ok(taskService.createTask(taskDto));
     }
 
@@ -38,7 +39,7 @@ public class TaskController {
     @PutMapping("/{id}")
     public ResponseEntity<TaskDto> updateTask(
             @PathVariable Long id,
-            @RequestBody TaskDto taskDto
+                @Valid @RequestBody TaskDto taskDto
     ) {
         return ResponseEntity.ok(taskService.updateTask(id, taskDto));
     }

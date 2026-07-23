@@ -33,9 +33,9 @@ export default function SearchPage() {
 
       // ✅ API call
       const res = await globalSearch(value);
-
-      // ✅ handle both axios + direct data
-      setResults(res || []);
+      const tasks = Array.isArray(res?.tasks) ? res.tasks : [];
+      const projects = Array.isArray(res?.projects) ? res.projects : [];
+      setResults([...tasks, ...projects]);
 
     } catch (err) {
       console.error(err);

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Typography,
@@ -6,7 +6,8 @@ import {
   List,
   ListItem,
   ListItemText,
-  Snackbar
+  Snackbar,
+  TextField
 } from "@mui/material";
 
 import {
@@ -16,60 +17,21 @@ import {
 } from "../services/notificationService";
 
 export default function NotificationsPage() {
-
+  const defaultUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
+  const [userId, setUserId] = useState(defaultUserId);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ✅ LOAD NOTIFICATIONS
+  const hasUnread = useMemo(() => notifications.some((n) => !n.isRead), [notifications]);
+
   const loadNotifications = async () => {
     try {
       setLoading(true);
-      const res = await getNotifications();
-      setNotifications(res.data);
-    } catch {
-      setError("Failed to load notifications");
-    } finally {
-      setLoading### ✅ MODULE 6 — NOTIFICATIONS (FULL BACKEND INTEGRATION)
-
----
-
-### ✅ `src/pages/NotificationsPage.jsx`
-
-```jsx
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  Button,
-  List,
-  ListItem,
-  ListItemText,
-  Snackbar
-} from "@mui/material";
-
-import {
-  getNotifications,
-  markAsRead,
-  markAllAsRead
-} from "../services/notificationService";
-
-export default function NotificationsPage() {
-
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // ✅ LOAD NOTIFICATIONS
-  const loadNotifications = async () => {
-    try {
-      setLoading(true);
-      const res = await getNotifications();
-      setNotifications(res.data);
+      const data = await getNotifications(userId);
+      setNotifications(data || []);
     } catch {
       setError("Failed to load notifications");
     } finally {
@@ -79,9 +41,8 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+  }, [userId]);
 
-  // ✅ MARK SINGLE AS READ
   const handleMarkRead = async (id) => {
     try {
       await markAsRead(id);
@@ -92,10 +53,9 @@ export default function NotificationsPage() {
     }
   };
 
-  // ✅ MARK ALL AS READ
   const handleMarkAll = async () => {
     try {
-      await markAllAsRead();
+      await markAllAsRead(userId);
       setSuccess("All notifications marked as read");
       loadNotifications();
     } catch {
@@ -105,16 +65,21 @@ export default function NotificationsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
-
-      <Box display="flex" justifyContent="space-between" mb={2}>
+      <Box display="flex" justifyContent="space-between" gap={2} mb={2}>
         <Typography variant="h5">Notifications</Typography>
-
-        <Button variant="contained" onClick={handleMarkAll}>
+        <TextField
+          size="small"
+          type="number"
+          label="User ID"
+          value={userId}
+          onChange={(e) => setUserId(Number(e.target.value || defaultUserId))}
+          sx={{ width: 140 }}
+        />
+        <Button variant="contained" onClick={handleMarkAll} disabled={!hasUnread || loading}>
           Mark All Read
         </Button>
       </Box>
 
-      {/* ✅ LIST UI PRESERVED */}
       <List>
         {notifications.map((n) => (
           <ListItem
@@ -124,10 +89,7 @@ export default function NotificationsPage() {
               mb: 1
             }}
           >
-            <ListItemText
-              primary={n.title}
-              secondary={n.message}
-            />
+            <ListItemText primary={n.title} secondary={n.message} />
 
             {!n.isRead && (
               <Button onClick={() => handleMarkRead(n.id)}>
@@ -138,7 +100,6 @@ export default function NotificationsPage() {
         ))}
       </List>
 
-      {/* ✅ SNACKBARS */}
       <Snackbar
         open={!!error}
         message={error}
@@ -152,7 +113,6 @@ export default function NotificationsPage() {
         autoHideDuration={3000}
         onClose={() => setSuccess("")}
       />
-
     </Box>
   );
 }

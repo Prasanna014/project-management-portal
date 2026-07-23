@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.NotificationDto;
 import com.company.projectmanagement.service.NotificationService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -44,7 +45,7 @@ public class NotificationController {
 
     /* ================= CREATE ================= */
     @PostMapping
-    public ResponseEntity<NotificationDto> create(@RequestBody NotificationDto dto) {
+    public ResponseEntity<NotificationDto> create(@Valid @RequestBody NotificationDto dto) {
         return ResponseEntity.ok(service.createNotification(dto));
     }
 }

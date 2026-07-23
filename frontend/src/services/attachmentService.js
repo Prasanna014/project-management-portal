@@ -1,12 +1,9 @@
-// ================= src/services/attachmentService.js =================
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/attachments";
+import API from "./api";
 
 /* ================= GET ATTACHMENTS ================= */
 export const getAttachments = async (taskId) => {
   try {
-    const response = await axios.get(`${BASE_URL}/task/${taskId}`);
+    const response = await API.get(`/attachments/task/${taskId}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching attachments for task ${taskId}:`, error);
@@ -15,13 +12,17 @@ export const getAttachments = async (taskId) => {
 };
 
 /* ================= UPLOAD ATTACHMENT ================= */
-export const uploadAttachment = async (taskId, file) => {
+export const uploadAttachment = async (taskId, file, uploadedBy) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
 
-    const response = await axios.post(
-      `${BASE_URL}/task/${taskId}`,
+    if (uploadedBy !== null && uploadedBy !== undefined) {
+      formData.append("uploadedBy", String(uploadedBy));
+    }
+
+    const response = await API.post(
+      `/attachments/task/${taskId}`,
       formData,
       {
         headers: {
@@ -40,8 +41,8 @@ export const uploadAttachment = async (taskId, file) => {
 /* ================= DOWNLOAD ATTACHMENT ================= */
 export const downloadAttachment = async (attachmentId) => {
   try {
-    const response = await axios.get(
-      `${BASE_URL}/${attachmentId}/download`,
+    const response = await API.get(
+      `/attachments/${attachmentId}/download`,
       {
         responseType: "blob",
       }
@@ -60,7 +61,7 @@ export const downloadAttachment = async (attachmentId) => {
 /* ================= DELETE ATTACHMENT ================= */
 export const deleteAttachment = async (attachmentId) => {
   try {
-    await axios.delete(`${BASE_URL}/${attachmentId}`);
+    await API.delete(`/attachments/${attachmentId}`);
   } catch (error) {
     console.error(
       `Error deleting attachment with id ${attachmentId}:`,

@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.ProjectDto;
 import com.company.projectmanagement.service.ProjectService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ public class ProjectController {
 
     /* ================= CREATE ================= */
     @PostMapping
-    public ResponseEntity<ProjectDto> createProject(@RequestBody ProjectDto dto) {
+    public ResponseEntity<ProjectDto> createProject(@Valid @RequestBody ProjectDto dto) {
         return ResponseEntity.ok(service.createProject(dto));
     }
 
@@ -38,7 +39,7 @@ public class ProjectController {
     @PutMapping("/{id}")
     public ResponseEntity<ProjectDto> updateProject(
             @PathVariable Long id,
-            @RequestBody ProjectDto dto
+            @Valid @RequestBody ProjectDto dto
     ) {
         return ResponseEntity.ok(service.updateProject(id, dto));
     }

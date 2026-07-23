@@ -1,29 +1,26 @@
-// ================= src/services/taskService.js =================
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/tasks";
+import API from "./api";
 
 // ✅ GET ALL
 export const getAllTasks = () => {
-  return axios.get(BASE_URL);
+  return API.get("/tasks").then((res) => res.data);
 };
 
 // ✅ GET BY ID
 export const getTaskById = (id) => {
-  return axios.get(`${BASE_URL}/${id}`);
+  return API.get(`/tasks/${id}`).then((res) => res.data);
 };
 
 // ✅ CREATE
 export const createTask = (task) => {
-  return axios.post(BASE_URL, task);
+  return API.post("/tasks", task).then((res) => res.data);
 };
 
 // ✅ UPDATE
 export const updateTask = (id, task) => {
-  return axios.put(`${BASE_URL}/${id}`, task);
+  return API.put(`/tasks/${id}`, task).then((res) => res.data);
 };
 
 // ✅ DELETE
 export const deleteTask = (id) => {
-  return axios.delete(`${BASE_URL}/${id}`);
+  return API.delete(`/tasks/${id}`);
 };

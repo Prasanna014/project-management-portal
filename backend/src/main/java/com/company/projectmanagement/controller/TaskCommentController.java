@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.TaskCommentDto;
 import com.company.projectmanagement.service.TaskCommentService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,7 +26,7 @@ public class TaskCommentController {
     @PostMapping("/api/tasks/{taskId}/comments")
     public ResponseEntity<TaskCommentDto> addComment(
             @PathVariable Long taskId,
-            @RequestBody TaskCommentDto dto
+            @Valid @RequestBody TaskCommentDto dto
     ) {
         return ResponseEntity.ok(service.addComment(taskId, dto));
     }

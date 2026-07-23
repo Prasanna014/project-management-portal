@@ -1,14 +1,9 @@
-import axios from "axios";
-
-// ✅ CLEAN CORRECT URL (NO HTML, NO <a>, NO extra text)
-const BASE_URL = "http://57.154.241.153:8080/api/dashboard";
-// OR if using local backend:
-// const BASE_URL = "http://localhost:8080/api/dashboard";
+import API from "./api";
 
 /* ================= SUMMARY ================= */
 export const getDashboardSummary = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/summary`);
+    const response = await API.get("/dashboard/summary");
     return response.data;
   } catch (error) {
     console.error("Error fetching dashboard summary:", error);
@@ -19,7 +14,7 @@ export const getDashboardSummary = async () => {
 /* ================= STATUS ================= */
 export const getStatusSummary = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/status`);
+    const response = await API.get("/dashboard/status");
     return response.data;
   } catch (error) {
     console.error("Error fetching status summary:", error);
@@ -30,7 +25,7 @@ export const getStatusSummary = async () => {
 /* ================= PRIORITY ================= */
 export const getPrioritySummary = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/priority`);
+    const response = await API.get("/dashboard/priority");
     return response.data;
   } catch (error) {
     console.error("Error fetching priority summary:", error);
@@ -41,7 +36,7 @@ export const getPrioritySummary = async () => {
 /* ================= WORKLOAD ================= */
 export const getOwnerWorkload = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/workload`);
+    const response = await API.get("/dashboard/workload");
     return response.data;
   } catch (error) {
     console.error("Error fetching owner workload:", error);

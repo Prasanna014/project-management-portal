@@ -8,6 +8,7 @@ import {
   TextField,
   Snackbar
 } from "@mui/material";
+import { useParams } from "react-router-dom";
 
 import { getTaskById } from "../services/taskService";
 import {
@@ -25,6 +26,10 @@ import {
 import { getActivity } from "../services/activityService";
 
 export default function TaskDetailsPage({ taskId }) {
+  const params = useParams();
+  const resolvedTaskId = taskId || params.taskId;
+
+  const currentUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
 
   const [tab, setTab] = useState(0);
 
@@ -40,15 +45,15 @@ export default function TaskDetailsPage({ taskId }) {
 
   const loadAll = async () => {
     try {
-      const taskRes = await getTaskById(taskId);
-      const commentsRes = await getComments(taskId);
-      const attachRes = await getAttachments(taskId);
-      const historyRes = await getActivity(taskId);
+      const taskRes = await getTaskById(resolvedTaskId);
+      const commentsRes = await getComments(resolvedTaskId);
+      const attachRes = await getAttachments(resolvedTaskId);
+      const historyRes = await getActivity(resolvedTaskId);
 
-      setTask(taskRes.data);
-      setComments(commentsRes.data);
-      setAttachments(attachRes.data);
-      setHistory(historyRes.data);
+      setTask(taskRes);
+      setComments(commentsRes || []);
+      setAttachments(attachRes || []);
+      setHistory(historyRes || []);
 
     } catch {
       setError("Failed to load task details");
@@ -56,14 +61,17 @@ export default function TaskDetailsPage({ taskId }) {
   };
 
   useEffect(() => {
-    loadAll();
-  }, [taskId]);
+    if (resolvedTaskId) {
+      loadAll();
+    }
+  }, [resolvedTaskId]);
 
   // ✅ ADD COMMENT
   const handleAddComment = async () => {
     try {
-      await addComment(taskId, {
-        commentText
+      await addComment(resolvedTaskId, {
+        commentText,
+        commentedBy: currentUserId
       });
       setSuccess("Comment added");
       setCommentText("");
@@ -83,10 +91,7 @@ export default function TaskDetailsPage({ taskId }) {
   // ✅ UPLOAD ATTACHMENT
   const handleUpload = async (e) => {
     const file = e.target.files[0];
-    const formData = new FormData();
-    formData.append("file", file);
-
-    await uploadAttachment(taskId, formData);
+    await uploadAttachment(resolvedTaskId, file, currentUserId);
     setSuccess("File uploaded");
     loadAll();
   };

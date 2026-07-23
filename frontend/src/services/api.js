@@ -1,7 +1,9 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
+
 const API = axios.create({
-  baseURL: "http://57.154.241.153:8080/api",
+  baseURL: API_BASE_URL,
   headers: {
     "Content-Type": "application/json"
   }
@@ -21,11 +23,6 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     console.error("API ERROR:", error?.response?.data || error.message);
-
-    // ✅ global error handling
-    if (error.response?.status === 500) {
-      alert("Server error. Contact admin.");
-    }
 
     return Promise.reject(error);
   }

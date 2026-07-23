@@ -12,7 +12,7 @@ import {
   createUser,
   updateUser,
   deleteUser
-} from "../services/userService";
+} from "../services/userServices";
 
 export default function UsersPage() {
 
@@ -26,8 +26,8 @@ export default function UsersPage() {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const res = await getUsers();
-      setRows(res.data);
+      const users = await getUsers();
+      setRows(users || []);
     } catch {
       setError("Failed to load users");
     } finally {

@@ -1,12 +1,9 @@
-// ================= src/services/reportService.js =================
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/reports";
+import API from "./api";
 
 /* ================= TASK SUMMARY ================= */
 export const getTaskSummaryReport = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/task-summary`);
+    const response = await API.get("/reports/task-summary");
     return response.data;
   } catch (error) {
     console.error("Error fetching task summary report:", error);
@@ -17,7 +14,7 @@ export const getTaskSummaryReport = async () => {
 /* ================= OPEN TASKS ================= */
 export const getOpenTasksReport = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/open-tasks`);
+    const response = await API.get("/reports/open-tasks");
     return response.data;
   } catch (error) {
     console.error("Error fetching open tasks report:", error);
@@ -28,7 +25,7 @@ export const getOpenTasksReport = async () => {
 /* ================= COMPLETED TASKS ================= */
 export const getCompletedTasksReport = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/completed-tasks`);
+    const response = await API.get("/reports/completed-tasks");
     return response.data;
   } catch (error) {
     console.error("Error fetching completed tasks report:", error);
@@ -39,7 +36,7 @@ export const getCompletedTasksReport = async () => {
 /* ================= PRIORITY REPORT ================= */
 export const getPriorityReport = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/priority`);
+    const response = await API.get("/reports/priority");
     return response.data;
   } catch (error) {
     console.error("Error fetching priority report:", error);
@@ -50,7 +47,7 @@ export const getPriorityReport = async () => {
 /* ================= OWNER WORKLOAD ================= */
 export const getOwnerWorkloadReport = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/owner-workload`);
+    const response = await API.get("/reports/owner-workload");
     return response.data;
   } catch (error) {
     console.error("Error fetching owner workload report:", error);

@@ -1,12 +1,9 @@
-// ================= src/services/projectService.js =================
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/projects";
+import API from "./api";
 
 /* ================= GET ALL ================= */
 export const getAllProjects = async () => {
   try {
-    const response = await axios.get(BASE_URL);
+    const response = await API.get("/projects");
     return response.data;
   } catch (error) {
     console.error("Error fetching all projects:", error);
@@ -17,7 +14,7 @@ export const getAllProjects = async () => {
 /* ================= GET BY ID ================= */
 export const getProjectById = async (id) => {
   try {
-    const response = await axios.get(`${BASE_URL}/${id}`);
+    const response = await API.get(`/projects/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching project with id ${id}:`, error);
@@ -28,7 +25,7 @@ export const getProjectById = async (id) => {
 /* ================= CREATE ================= */
 export const createProject = async (project) => {
   try {
-    const response = await axios.post(BASE_URL, project);
+    const response = await API.post("/projects", project);
     return response.data;
   } catch (error) {
     console.error("Error creating project:", error);
@@ -39,7 +36,7 @@ export const createProject = async (project) => {
 /* ================= UPDATE ================= */
 export const updateProject = async (id, project) => {
   try {
-    const response = await axios.put(`${BASE_URL}/${id}`, project);
+    const response = await API.put(`/projects/${id}`, project);
     return response.data;
   } catch (error) {
     console.error(`Error updating project with id ${id}:`, error);
@@ -50,7 +47,7 @@ export const updateProject = async (id, project) => {
 /* ================= DELETE ================= */
 export const deleteProject = async (id) => {
   try {
-    await axios.delete(`${BASE_URL}/${id}`);
+    await API.delete(`/projects/${id}`);
   } catch (error) {
     console.error(`Error deleting project with id ${id}:`, error);
     throw error;
@@ -58,10 +55,10 @@ export const deleteProject = async (id) => {
 };
 
 /* ================= SEARCH ================= */
-export const searchProjects = async (projectName) => {
+export const searchProjects = async (keyword) => {
   try {
-    const response = await axios.get(BASE_URL, {
-      params: { projectName },
+    const response = await API.get("/search/projects", {
+      params: { keyword },
     });
     return response.data;
   } catch (error) {
@@ -73,10 +70,8 @@ export const searchProjects = async (projectName) => {
 /* ================= GET ACTIVE ================= */
 export const getActiveProjects = async () => {
   try {
-    const response = await axios.get(BASE_URL, {
-      params: { active: true },
-    });
-    return response.data;
+    const projects = await getAllProjects();
+    return (projects || []).filter((p) => p.active);
   } catch (error) {
     console.error("Error fetching active projects:", error);
     throw error;

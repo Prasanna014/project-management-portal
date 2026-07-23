@@ -28,18 +28,20 @@ public class AttachmentController {
     @PostMapping("/task/{taskId}")
     public ResponseEntity<TaskAttachmentDto> upload(
             @PathVariable Long taskId,
-            @RequestParam("file") MultipartFile file
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "uploadedBy", required = false) Long uploadedBy
     ) {
-        return ResponseEntity.ok(service.uploadAttachment(taskId, file));
+        return ResponseEntity.ok(service.uploadAttachment(taskId, file, uploadedBy));
     }
 
     @GetMapping("/{attachmentId}/download")
     public ResponseEntity<byte[]> download(@PathVariable Long attachmentId) {
 
+        TaskAttachmentDto attachment = service.getAttachmentById(attachmentId);
         byte[] fileData = service.downloadAttachment(attachmentId);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=file")
+            .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + attachment.getFileName() + "\"")
                 .contentType(MediaType.APPLICATION_OCTET_STREAM)
                 .body(fileData);
     }

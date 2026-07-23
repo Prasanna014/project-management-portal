@@ -1,10 +1,8 @@
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/search";
+import API from "./api";
 
 // ✅ GLOBAL SEARCH
 export const globalSearch = async (keyword) => {
-  const res = await axios.get(`${BASE_URL}/global`, {
+  const res = await API.get("/search/global", {
     params: { keyword }
   });
   return res.data;

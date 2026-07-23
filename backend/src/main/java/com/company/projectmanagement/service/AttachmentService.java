@@ -28,7 +28,13 @@ public class AttachmentService {
                 .collect(Collectors.toList());
     }
 
-    public TaskAttachmentDto uploadAttachment(Long taskId, MultipartFile file) {
+    public TaskAttachmentDto getAttachmentById(Long attachmentId) {
+        TaskAttachment attachment = repository.findById(attachmentId)
+                .orElseThrow(() -> new RuntimeException("Attachment not found"));
+        return mapToDto(attachment);
+    }
+
+    public TaskAttachmentDto uploadAttachment(Long taskId, MultipartFile file, Long uploadedBy) {
         try {
             String fileName = System.currentTimeMillis() + "_" + file.getOriginalFilename();
             String filePath = UPLOAD_DIR + fileName;
@@ -41,7 +47,7 @@ public class AttachmentService {
                     .fileName(file.getOriginalFilename())
                     .fileType(file.getContentType())
                     .filePath(filePath)
-                    .uploadedBy(1L) // placeholder
+                    .uploadedBy(uploadedBy)
                     .build();
 
             TaskAttachment saved = repository.save(entity);

@@ -7,9 +7,7 @@ export default defineConfig({
   server: {
     host: "0.0.0.0",
     port: 5173,
-    strictPort: true,
-
-    hmr: false   // ✅ ✅ DISABLE HMR (fix ping timeout instantly)
+    strictPort: true
   }
 })
 

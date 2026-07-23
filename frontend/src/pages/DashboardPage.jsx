@@ -51,24 +51,24 @@ export default function DashboardPage() {
           getOwnerWorkload()
         ]);
 
-      setSummary(summaryRes.data);
+      setSummary(summaryRes || {});
 
       setStatusData(
-        Object.entries(statusRes.data || {}).map(([key, value]) => ({
+        Object.entries(statusRes || {}).map(([key, value]) => ({
           name: key,
           value
         }))
       );
 
       setPriorityData(
-        Object.entries(priorityRes.data || {}).map(([key, value]) => ({
+        Object.entries(priorityRes || {}).map(([key, value]) => ({
           name: key,
           value
         }))
       );
 
       setOwnerData(
-        Object.entries(ownerRes.data || {}).map(([key, value]) => ({
+        Object.entries(ownerRes || {}).map(([key, value]) => ({
           name: key,
           tasks: value
         }))

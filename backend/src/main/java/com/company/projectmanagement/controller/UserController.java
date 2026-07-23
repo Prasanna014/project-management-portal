@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.UserDto;
 import com.company.projectmanagement.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -30,7 +31,7 @@ public class UserController {
 
     /* ================= CREATE ================= */
     @PostMapping
-    public ResponseEntity<UserDto> createUser(@RequestBody UserDto dto) {
+    public ResponseEntity<UserDto> createUser(@Valid @RequestBody UserDto dto) {
         return ResponseEntity.ok(service.createUser(dto));
     }
 
@@ -38,7 +39,7 @@ public class UserController {
     @PutMapping("/{id}")
     public ResponseEntity<UserDto> updateUser(
             @PathVariable Long id,
-            @RequestBody UserDto dto
+                @Valid @RequestBody UserDto dto
     ) {
         return ResponseEntity.ok(service.updateUser(id, dto));
     }

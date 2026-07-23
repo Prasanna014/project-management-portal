@@ -17,7 +17,7 @@ import {
   createTask,
   updateTask,
   deleteTask
-} from "../services/taskService"
+} from "../services/taskService";
 
 
 export default function TasksPage() {
@@ -35,9 +35,9 @@ export default function TasksPage() {
   const loadTasks = async () => {
     try {
       setLoading(true);
-      const res = await getAllTasks();
+      const tasks = await getAllTasks();
 
-      let data = res.data || [];
+      let data = tasks || [];
 
       if (search) {
         data = data.filter(t =>
@@ -68,9 +68,14 @@ export default function TasksPage() {
 
   const handleCreate = async () => {
     try {
+      const fallbackProjectId = rows.find((r) => r.projectId)?.projectId;
+      if (!fallbackProjectId) {
+        setError("Create a project first before creating tasks");
+        return;
+      }
       await createTask({
         taskNo: "TASK-" + Date.now(),
-        projectId: 1,
+        projectId: fallbackProjectId,
         issueActionItem: "New Task",
         description: "Created from UI",
         status: "Open",

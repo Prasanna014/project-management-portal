@@ -3,6 +3,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.ActivityHistoryDto;
 import com.company.projectmanagement.service.ActivityService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -24,7 +25,7 @@ public class ActivityController {
 
     /* ================= CREATE ACTIVITY ================= */
     @PostMapping
-    public ResponseEntity<ActivityHistoryDto> createActivity(@RequestBody ActivityHistoryDto dto) {
+    public ResponseEntity<ActivityHistoryDto> createActivity(@Valid @RequestBody ActivityHistoryDto dto) {
         return ResponseEntity.ok(service.createActivity(dto));
     }
 }

@@ -30,7 +30,7 @@ const COLORS = ["#1976D2", "#7B1FA2", "#2E7D32", "#D32F2F", "#F9A825"];
 
 export default function ReportsPage() {
 
-  const [summary, setSummary] = useState({});
+  const [summary, setSummary] = useState({ totalCount: 0, data: {} });
   const [statusData, setStatusData] = useState([]);
   const [priorityData, setPriorityData] = useState([]);
 
@@ -46,19 +46,17 @@ export default function ReportsPage() {
         getPriorityReport(),
       ]);
 
-      // ✅ summary cards
-      setSummary(summaryRes || {});
+      setSummary(summaryRes || { totalCount: 0, data: {} });
 
-      // ✅ convert maps → chart data
-      //setStatusData(
-        //Object.entries(statusRes.data).map(([key, value]) => ({
-          //name: key,
-          //value
-        //}))
-      //);
+      setStatusData(
+        Object.entries(summaryRes?.data || {}).map(([key, value]) => ({
+          name: key,
+          value
+        }))
+      );
 
       setPriorityData(
-        Object.entries(priorityRes || {}).map(([key, value]) => ({
+        Object.entries(priorityRes?.data || {}).map(([key, value]) => ({
           name: key,
           value
         }))
@@ -96,7 +94,7 @@ export default function ReportsPage() {
           <Card>
             <CardContent>
               <Typography>Total Tasks</Typography>
-              <Typography variant="h5">{summary.totalTasks}</Typography>
+              <Typography variant="h5">{summary.totalCount || 0}</Typography>
             </CardContent>
           </Card>
         </Grid>
@@ -105,7 +103,7 @@ export default function ReportsPage() {
           <Card>
             <CardContent>
               <Typography>Completed</Typography>
-              <Typography variant="h5">{summary.completedTasks}</Typography>
+              <Typography variant="h5">{summary.data?.Completed || 0}</Typography>
             </CardContent>
           </Card>
         </Grid>

@@ -23,7 +23,7 @@ export default function ProjectDialog({ open, onClose, onSave }) {
   });
 
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, value }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = () => {

@@ -2,7 +2,12 @@ import React, { useEffect, useState } from "react";
 import { Box, Button, Snackbar } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
-import { getAllProjects } from "../services/projectService";
+import {
+  getAllProjects,
+  createProject,
+  updateProject,
+  deleteProject
+} from "../services/projectService";
 
 export default function ProjectPage() {
   const [rows, setRows] = useState([]);
@@ -14,8 +19,8 @@ export default function ProjectPage() {
   const loadProjects = async () => {
     try {
       setLoading(true);
-      const res = await getProjects();
-      setRows(res || []);
+      const projects = await getAllProjects();
+      setRows(projects || []);
     } catch (e) {
       console.error(e);
       setError("Failed to load projects");

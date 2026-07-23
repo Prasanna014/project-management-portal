@@ -1,12 +1,9 @@
-// ================= src/services/userService.js =================
-import axios from "axios";
-
-const BASE_URL = "http://57.154.241.153:8080/api/users";
+import API from "./api";
 
 /* ================= GET ALL USERS ================= */
-export const getAllUsers = async () => {
+export const getUsers = async () => {
   try {
-    const response = await axios.get(BASE_URL);
+    const response = await API.get("/users");
     return response.data;
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -17,7 +14,7 @@ export const getAllUsers = async () => {
 /* ================= GET USER BY ID ================= */
 export const getUserById = async (id) => {
   try {
-    const response = await axios.get(`${BASE_URL}/${id}`);
+    const response = await API.get(`/users/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching user with id ${id}:`, error);
@@ -28,7 +25,7 @@ export const getUserById = async (id) => {
 /* ================= CREATE USER ================= */
 export const createUser = async (user) => {
   try {
-    const response = await axios.post(BASE_URL, user);
+    const response = await API.post("/users", user);
     return response.data;
   } catch (error) {
     console.error("Error creating user:", error);
@@ -39,7 +36,7 @@ export const createUser = async (user) => {
 /* ================= UPDATE USER ================= */
 export const updateUser = async (id, user) => {
   try {
-    const response = await axios.put(`${BASE_URL}/${id}`, user);
+    const response = await API.put(`/users/${id}`, user);
     return response.data;
   } catch (error) {
     console.error(`Error updating user with id ${id}:`, error);
@@ -50,7 +47,7 @@ export const updateUser = async (id, user) => {
 /* ================= DELETE USER ================= */
 export const deleteUser = async (id) => {
   try {
-    await axios.delete(`${BASE_URL}/${id}`);
+    await API.delete(`/users/${id}`);
   } catch (error) {
     console.error(`Error deleting user with id ${id}:`, error);
     throw error;
@@ -60,10 +57,12 @@ export const deleteUser = async (id) => {
 /* ================= GET ACTIVE USERS ================= */
 export const getActiveUsers = async () => {
   try {
-    const response = await axios.get(`${BASE_URL}/active`);
+    const response = await API.get("/users/active");
     return response.data;
   } catch (error) {
     console.error("Error fetching active users:", error);
     throw error;
   }
 };
+
+export const getAllUsers = getUsers;
