@@ -45,48 +45,54 @@ export default function CreateTaskPage() {
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [loadingLookup, setLoadingLookup] = useState(true);
+  const [loadTimeout, setLoadTimeout] = useState(false);
+
+  const loadLookupData = async () => {
+    try {
+      setLoadingLookup(true);
+      setLoadTimeout(false);
+      setError("");
+      console.log("🟡 [" + new Date().toLocaleTimeString() + "] Loading projects and users...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
+      
+      const [projectData, userData] = await Promise.all([
+        getAllProjects(),
+        getUsers()
+      ]);
+      
+      console.log("🟢 [" + new Date().toLocaleTimeString() + "] Projects received:", projectData);
+      console.log("🟢 [" + new Date().toLocaleTimeString() + "] Users received:", userData);
+      
+      const allProjects = projectData || [];
+      const allUsers = userData || [];
+      
+      setProjects(allProjects);
+      setUsers(allUsers);
+      
+      if (allProjects.length === 0 && allUsers.length === 0) {
+        setError("⚠️ No projects or users found. Check backend connection.");
+      }
+    } catch (err) {
+      console.error("🔴 [" + new Date().toLocaleTimeString() + "] ERROR:", err.message);
+      console.error("Error status:", err.response?.status);
+      console.error("Error data:", err.response?.data);
+      setError(`❌ Connection failed: ${err.message}`);
+    } finally {
+      setLoadingLookup(false);
+    }
+  };
 
   useEffect(() => {
-    const loadLookupData = async () => {
-      try {
-        setLoadingLookup(true);
-        console.log("🟡 Loading projects and users for task creation...");
-        console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
-        
-        const [projectData, userData] = await Promise.all([
-          getAllProjects(),
-          getUsers()
-        ]);
-        
-        console.log("🟢 Raw project data:", projectData);
-        console.log("🟢 Raw user data:", userData);
-        
-        // Load ALL projects/users, not just active ones
-        const allProjects = projectData || [];
-        const allUsers = userData || [];
-        
-        console.log("✅ All projects:", allProjects);
-        console.log("✅ All users:", allUsers);
-        
-        setProjects(allProjects);
-        setUsers(allUsers);
-        
-        if (allProjects.length === 0) {
-          setError("⚠️ No projects found. Please create a project first.");
-        }
-        if (allUsers.length === 0) {
-          setError("⚠️ No users found. Please add users first.");
-        }
-      } catch (err) {
-        console.error("🔴 ERROR loading projects/users:", err);
-        console.error("Error details:", err.response?.data || err.message);
-        setError(`🔴 Failed to load data: ${err.message}`);
-      } finally {
-        setLoadingLookup(false);
+    const timeoutId = setTimeout(() => {
+      if (loadingLookup) {
+        console.warn("⏱️ Loading timeout - API did not respond in 8 seconds");
+        setLoadTimeout(true);
       }
-    };
-
+    }, 8000);
+    
     loadLookupData();
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   const preview = useMemo(() => ({
@@ -163,27 +169,45 @@ export default function CreateTaskPage() {
   return (
     <Box sx={{ p: 3, maxWidth: "1600px", margin: "auto" }}>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
+        <Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{error}</span>
+          <Button size="small" variant="outlined" onClick={loadLookupData} sx={{ ml: 2 }}>
+            Retry
+          </Button>
         </Alert>
       )}
       
-      {loadingLookup && (
+      {loadingLookup && !loadTimeout && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
           <CircularProgress size={30} />
           <Typography>🟡 Loading projects and users...</Typography>
         </Box>
       )}
       
-      {!loadingLookup && projects.length === 0 && (
+      {loadTimeout && loadingLookup && (
+        <Alert severity="warning" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>⏱️ Taking longer than expected. Backend may be unreachable.</span>
+          <Button size="small" variant="outlined" onClick={loadLookupData} sx={{ ml: 2 }}>
+            Retry
+          </Button>
+        </Alert>
+      )}
+      
+      {!loadingLookup && projects.length === 0 && users.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           ⚠️ No projects available. Please <a href="/projects">create a project first</a>.
         </Alert>
       )}
       
-      {!loadingLookup && users.length === 0 && (
+      {!loadingLookup && users.length === 0 && projects.length > 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           ⚠️ No users available. Please check your database.
+        </Alert>
+      )}
+      
+      {!loadingLookup && projects.length === 0 && users.length === 0 && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          ❌ Failed to load data. Check backend connection or database.
         </Alert>
       )}
       <Grid container spacing={3}>

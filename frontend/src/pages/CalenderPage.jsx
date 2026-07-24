@@ -1,33 +1,47 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar, Alert } from "@mui/material";
+import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
 import { getAllTasks } from "../services/taskService";
 
 export default function CalenderPage() {
 	const [tasks, setTasks] = useState([]);
 	const [loading, setLoading] = useState(true);
+	const [loadTimeout, setLoadTimeout] = useState(false);
 	const [error, setError] = useState("");
 
+	const loadCalendarTasks = async () => {
+		try {
+			console.log("🟡 [" + new Date().toLocaleTimeString() + "] Loading calendar tasks...");
+			console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
+			setLoading(true);
+			setLoadTimeout(false);
+			setError("");
+			
+			const data = await getAllTasks();
+			console.log("🟢 [" + new Date().toLocaleTimeString() + "] Tasks loaded:", data);
+			console.log("🔢 Total tasks:", data?.length || 0);
+			
+			setTasks(data || []);
+		} catch (err) {
+			console.error("🔴 [" + new Date().toLocaleTimeString() + "] ERROR:", err.message);
+			console.error("Error status:", err.response?.status);
+			console.error("Error data:", err.response?.data);
+			setError(`❌ Connection failed: ${err.message}`);
+		} finally {
+			setLoading(false);
+		}
+	};
+
 	useEffect(() => {
-		const load = async () => {
-			try {
-				console.log("🟡 Loading calendar tasks...");
-				console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
-				setLoading(true);
-				
-				const data = await getAllTasks();
-				console.log("🟢 Calendar tasks loaded:", data);
-				console.log("🔢 Total tasks:", data?.length || 0);
-				
-				setTasks(data || []);
-			} catch (err) {
-				console.error("🔴 ERROR loading calendar:", err);
-				console.error("Error message:", err.message);
-				setError(`Failed to load calendar data: ${err.message}`);
-			} finally {
-				setLoading(false);
+		const timeoutId = setTimeout(() => {
+			if (loading) {
+				console.warn("⏱️ Loading timeout - API did not respond in 8 seconds");
+				setLoadTimeout(true);
 			}
-		};
-		load();
+		}, 8000);
+		
+		loadCalendarTasks();
+		
+		return () => clearTimeout(timeoutId);
 	}, []);
 
 	const groupedByDate = useMemo(() => {
@@ -42,7 +56,7 @@ export default function CalenderPage() {
 		return grouped;
 	}, [tasks]);
 
-	if (loading) {
+	if (loading && !loadTimeout) {
 		return (
 			<Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
 				<CircularProgress />
@@ -51,12 +65,28 @@ export default function CalenderPage() {
 		);
 	}
 
+	if (loading && loadTimeout) {
+		return (
+			<Box sx={{ p: 3 }}>
+				<Alert severity="warning" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+					<span>⏱️ Taking longer than expected. Backend may be unreachable.</span>
+					<Button variant="outlined" onClick={loadCalendarTasks} sx={{ ml: 2 }}>
+						Retry
+					</Button>
+				</Alert>
+			</Box>
+		);
+	}
+
 	return (
 		<Box sx={{ p: 3 }}>
 			<Typography variant="h5" sx={{ mb: 2 }}>📅 Task Calendar</Typography>
 			{error && (
-				<Alert severity="error" sx={{ mb: 2 }}>
-					{error}
+				<Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+					<span>{error}</span>
+					<Button size="small" variant="outlined" onClick={loadCalendarTasks} sx={{ ml: 2 }}>
+						Retry
+					</Button>
 				</Alert>
 			)}
 			
