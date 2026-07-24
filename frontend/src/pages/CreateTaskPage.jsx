@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Grid,
@@ -8,122 +9,109 @@ import {
   Typography,
   Button,
   MenuItem,
-  Snackbar,
-  Chip,
   Alert,
-  CircularProgress
+  CircularProgress,
+  Paper
 } from "@mui/material";
 
 import { getAllProjects } from "../services/projectService";
 import { getUsers } from "../services/userServices";
 import { createTask } from "../services/taskService";
-import { addComment } from "../services/taskCommentService";
-import { uploadAttachment } from "../services/attachmentService";
-
-const priorities = ["Critical", "High", "Medium", "Low"];
-const statuses = ["Open", "Waiting", "In Progress", "Blocked", "Completed", "Scheduled"];
 
 export default function CreateTaskPage() {
+  const navigate = useNavigate();
   const currentUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
 
+  // State
   const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
-
+  const [loadingData, setLoadingData] = useState(true);
+  const [loadingError, setLoadingError] = useState("");
+  
   const [form, setForm] = useState({
     issueActionItem: "",
     description: "",
-    priority: "",
+    priority: "Medium",
     projectId: "",
     ownerId: "",
     targetDate: "",
-    status: "Open",
-    comment: "",
-    attachments: []
+    status: "Open"
   });
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [loadingLookup, setLoadingLookup] = useState(true);
-  const [loadTimeout, setLoadTimeout] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  const loadLookupData = async () => {
+  // Load projects and users on mount
+  useEffect(() => {
+    console.log("🟡 CreateTaskPage mounted, loading data...");
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    setLoadingData(true);
+    setLoadingError("");
+    console.log("🟡 Loading projects and users...");
+    
     try {
-      setLoadingLookup(true);
-      setLoadTimeout(false);
-      setError("");
-      console.log("🟡 [" + new Date().toLocaleTimeString() + "] Loading projects and users...");
-      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
-      
-      const [projectData, userData] = await Promise.all([
+      const [projectsRes, usersRes] = await Promise.all([
         getAllProjects(),
         getUsers()
       ]);
-      
-      console.log("🟢 [" + new Date().toLocaleTimeString() + "] Projects received:", projectData);
-      console.log("🟢 [" + new Date().toLocaleTimeString() + "] Users received:", userData);
-      
-      const allProjects = projectData || [];
-      const allUsers = userData || [];
-      
-      setProjects(allProjects);
-      setUsers(allUsers);
-      
-      if (allProjects.length === 0 && allUsers.length === 0) {
-        setError("⚠️ No projects or users found. Check backend connection.");
+
+      console.log("✅ Projects loaded:", projectsRes?.length);
+      console.log("✅ Users loaded:", usersRes?.length);
+
+      setProjects(projectsRes || []);
+      setUsers(usersRes || []);
+
+      if (!projectsRes || projectsRes.length === 0) {
+        setLoadingError("❌ No projects found. Please create a project first.");
+      }
+      if (!usersRes || usersRes.length === 0) {
+        setLoadingError("❌ No users found. Please add users first.");
       }
     } catch (err) {
-      console.error("🔴 [" + new Date().toLocaleTimeString() + "] ERROR:", err.message);
-      console.error("Error status:", err.response?.status);
-      console.error("Error data:", err.response?.data);
-      setError(`❌ Connection failed: ${err.message}`);
+      console.error("❌ Error loading data:", err.message);
+      setLoadingError(`Error: ${err.message}`);
     } finally {
-      setLoadingLookup(false);
+      setLoadingData(false);
     }
   };
 
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (loadingLookup) {
-        console.warn("⏱️ Loading timeout - API did not respond in 8 seconds");
-        setLoadTimeout(true);
-      }
-    }, 8000);
-    
-    loadLookupData();
-    
-    return () => clearTimeout(timeoutId);
-  }, []);
-
-  const preview = useMemo(() => ({
-    taskNo: `TASK-${Date.now()}`,
-    issueActionItem: form.issueActionItem,
-    priority: form.priority,
-    status: form.status,
-    ownerId: form.ownerId,
-    targetDate: form.targetDate
-  }), [form]);
-
   const handleChange = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleFileUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    setForm((prev) => ({ ...prev, attachments: files }));
+    console.log(`Updating form field: ${field} = ${value}`);
+    setForm(prev => ({ ...prev, [field]: value }));
   };
 
   const handleSubmit = async () => {
-    if (!form.issueActionItem || !form.priority || !form.projectId || !form.ownerId) {
-      setError("❌ Required fields: Issue, Priority, Project, and Owner");
+    console.log("🟡 Attempting to create task...");
+    
+    // Validation
+    if (!form.issueActionItem.trim()) {
+      setSubmitError("Issue/Action Item is required");
+      return;
+    }
+    if (!form.priority) {
+      setSubmitError("Priority is required");
+      return;
+    }
+    if (!form.projectId) {
+      setSubmitError("Project is required");
+      return;
+    }
+    if (!form.ownerId) {
+      setSubmitError("Owner is required");
       return;
     }
 
-    try {
-      setSubmitting(true);
-      console.log("🟡 Creating task with data:", form);
+    setSubmitting(true);
+    setSubmitError("");
 
-      const created = await createTask({
+    try {
+      console.log("🟡 Creating task...");
+      
+      const taskData = {
         taskNo: `TASK-${Date.now()}`,
         projectId: Number(form.projectId),
         issueActionItem: form.issueActionItem,
@@ -133,96 +121,104 @@ export default function CreateTaskPage() {
         ownerId: Number(form.ownerId),
         targetDate: form.targetDate || null,
         createdBy: currentUserId
-      });
+      };
 
-      console.log("🟢 Task created successfully:", created);
+      console.log("📤 Sending task data:", taskData);
+      const result = await createTask(taskData);
+      
+      console.log("✅ Task created successfully:", result);
+      setSubmitSuccess(true);
 
-      if (form.comment && created?.id) {
-        await addComment(created.id, {
-          commentText: form.comment,
-          commentedBy: currentUserId
-        });
-      }
-
-      if (created?.id && form.attachments.length > 0) {
-        await Promise.all(
-          form.attachments.map((file) => uploadAttachment(created.id, file, currentUserId))
-        );
-      }
-
-      setSuccess("✅ Task created successfully!");
+      // Reset form
       setForm({
         issueActionItem: "",
         description: "",
-        priority: "",
+        priority: "Medium",
         projectId: "",
         ownerId: "",
         targetDate: "",
-        status: "Open",
-        comment: "",
-        attachments: []
+        status: "Open"
       });
+
+      // Redirect after success
+      setTimeout(() => {
+        console.log("Redirecting to /tasks");
+        navigate("/tasks");
+      }, 1500);
     } catch (err) {
-      console.error("🔴 Error creating task:", err);
-      setError("❌ Task creation failed: " + err.message);
+      console.error("❌ Error creating task:", err.message);
+      setSubmitError(`Failed to create task: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
+  console.log("🟢 CreateTaskPage rendering | loadingData:", loadingData, "| projects:", projects.length, "| users:", users.length);
+
   return (
-    <Box sx={{ p: 3, maxWidth: "1200px", margin: "0 auto" }}>
-      <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>📝 Create New Task</Typography>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>{error}</span>
-          <Button size="small" variant="outlined" onClick={loadLookupData} sx={{ ml: 2 }}>
+    <Box sx={{ p: 3 }}>
+      {/* Header */}
+      <Typography variant="h4" sx={{ mb: 1, fontWeight: "bold" }}>
+        ➕ Create New Task
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
+        Fill in the form below to create a new task
+      </Typography>
+
+      {/* Error Messages */}
+      {loadingError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {loadingError}
+          <Button size="small" onClick={loadData} sx={{ ml: 2 }}>
             Retry
           </Button>
         </Alert>
       )}
-      
-      {success && (
+
+      {submitError && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {submitError}
+        </Alert>
+      )}
+
+      {submitSuccess && (
         <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
+          ✅ Task created successfully! Redirecting...
         </Alert>
       )}
-      
-      {loadTimeout && loadingLookup && (
-        <Alert severity="warning" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>⏱️ Taking longer than expected. Backend may be unreachable.</span>
-          <Button size="small" variant="outlined" onClick={loadLookupData} sx={{ ml: 2 }}>
-            Retry
-          </Button>
-        </Alert>
+
+      {/* Loading State */}
+      {loadingData && (
+        <Paper sx={{ p: 3, mb: 3, display: "flex", alignItems: "center", gap: 2 }}>
+          <CircularProgress size={24} />
+          <Typography>Loading projects and users...</Typography>
+        </Paper>
       )}
-      
-      {loadingLookup && !loadTimeout && (
-        <Alert severity="info" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
-          <CircularProgress size={20} />
-          <span>🟡 Loading projects and users...</span>
-        </Alert>
-      )}
-      
+
+      {/* Main Form */}
       <Grid container spacing={3}>
+        {/* Left Column - Form */}
         <Grid item xs={12} md={8}>
-          <Card sx={{ boxShadow: 3 }}>
+          <Card sx={{ boxShadow: 2 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 3, fontWeight: "bold", color: "primary.main" }}>Task Details</Typography>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+                Task Details
+              </Typography>
 
               <Grid container spacing={2}>
+                {/* Task Number (Read-only) */}
                 <Grid item xs={12} sm={6}>
-                  <TextField 
-                    fullWidth 
-                    label="Task Number" 
-                    value={preview.taskNo} 
-                    disabled 
+                  <TextField
+                    fullWidth
+                    label="Task Number"
+                    value={`TASK-${Date.now()}`}
+                    disabled
                     variant="outlined"
                     size="small"
                   />
                 </Grid>
-                
+
+                {/* Status */}
                 <Grid item xs={12} sm={6}>
                   <TextField
                     select
@@ -233,35 +229,45 @@ export default function CreateTaskPage() {
                     variant="outlined"
                     size="small"
                   >
-                    {statuses.map((s) => (
-                      <MenuItem key={s} value={s}>{s}</MenuItem>
-                    ))}
+                    <MenuItem value="Open">Open</MenuItem>
+                    <MenuItem value="In Progress">In Progress</MenuItem>
+                    <MenuItem value="Waiting">Waiting</MenuItem>
+                    <MenuItem value="Blocked">Blocked</MenuItem>
+                    <MenuItem value="Completed">Completed</MenuItem>
+                    <MenuItem value="Scheduled">Scheduled</MenuItem>
                   </TextField>
                 </Grid>
 
+                {/* Issue/Action Item - REQUIRED */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
                     label="Issue / Action Item *"
                     value={form.issueActionItem}
                     onChange={(e) => handleChange("issueActionItem", e.target.value)}
-                    required
+                    multiline
+                    rows={2}
                     variant="outlined"
                     placeholder="Enter the task description"
+                    error={!form.issueActionItem && submitError !== ""}
                   />
                 </Grid>
 
+                {/* Description - OPTIONAL */}
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    multiline
-                    rows={5}
-                    label="Detailed Description"
+                    label="Description"
                     value={form.description}
                     onChange={(e) => handleChange("description", e.target.value)}
+                    multiline
+                    rows={4}
+                    variant="outlined"
+                    placeholder="Enter detailed description (optional)"
                   />
                 </Grid>
 
+                {/* Priority - REQUIRED */}
                 <Grid item xs={12} sm={6}>
                   <TextField
                     select
@@ -269,16 +275,18 @@ export default function CreateTaskPage() {
                     label="Priority *"
                     value={form.priority}
                     onChange={(e) => handleChange("priority", e.target.value)}
-                    required
                     variant="outlined"
                     size="small"
+                    error={!form.priority && submitError !== ""}
                   >
-                    {priorities.map((p) => (
-                      <MenuItem key={p} value={p}>{p}</MenuItem>
-                    ))}
+                    <MenuItem value="Critical">🔴 Critical</MenuItem>
+                    <MenuItem value="High">🟠 High</MenuItem>
+                    <MenuItem value="Medium">🟡 Medium</MenuItem>
+                    <MenuItem value="Low">🟢 Low</MenuItem>
                   </TextField>
                 </Grid>
 
+                {/* Project - REQUIRED */}
                 <Grid item xs={12} sm={6}>
                   <TextField
                     select
@@ -286,24 +294,36 @@ export default function CreateTaskPage() {
                     label="Project *"
                     value={form.projectId}
                     onChange={(e) => handleChange("projectId", e.target.value)}
-                    disabled={loadingLookup || projects.length === 0}
-                    required
                     variant="outlined"
                     size="small"
-                    helperText={loadingLookup ? "Loading..." : `${projects.length} projects available`}
+                    disabled={loadingData || projects.length === 0}
+                    error={!form.projectId && submitError !== ""}
+                    helperText={loadingData ? "Loading..." : `${projects.length} available`}
                   >
-                    {projects.length === 0 ? (
-                      <MenuItem disabled>No projects available</MenuItem>
-                    ) : (
-                      projects.map((p) => (
-                        <MenuItem key={p.id} value={p.id}>
-                          {p.projectName}
-                        </MenuItem>
-                      ))
-                    )}
+                    <MenuItem value="">Select a project</MenuItem>
+                    {projects.map((p) => (
+                      <MenuItem key={p.id} value={p.id}>
+                        {p.projectName}
+                      </MenuItem>
+                    ))}
                   </TextField>
                 </Grid>
 
+                {/* Target Date - OPTIONAL */}
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    type="date"
+                    fullWidth
+                    label="Target Date"
+                    value={form.targetDate}
+                    onChange={(e) => handleChange("targetDate", e.target.value)}
+                    variant="outlined"
+                    size="small"
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+
+                {/* Owner - REQUIRED */}
                 <Grid item xs={12} sm={6}>
                   <TextField
                     select
@@ -311,113 +331,79 @@ export default function CreateTaskPage() {
                     label="Owner *"
                     value={form.ownerId}
                     onChange={(e) => handleChange("ownerId", e.target.value)}
-                    disabled={loadingLookup || users.length === 0}
-                    required
                     variant="outlined"
                     size="small"
-                    helperText={loadingLookup ? "Loading..." : `${users.length} users available`}
+                    disabled={loadingData || users.length === 0}
+                    error={!form.ownerId && submitError !== ""}
+                    helperText={loadingData ? "Loading..." : `${users.length} available`}
                   >
-                    {users.length === 0 ? (
-                      <MenuItem disabled>No users available</MenuItem>
-                    ) : (
-                      users.map((u) => (
-                        <MenuItem key={u.id} value={u.id}>
-                          {u.fullName}
-                        </MenuItem>
-                      ))
-                    )}
+                    <MenuItem value="">Select an owner</MenuItem>
+                    {users.map((u) => (
+                      <MenuItem key={u.id} value={u.id}>
+                        {u.fullName}
+                      </MenuItem>
+                    ))}
                   </TextField>
                 </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    type="date"
-                    fullWidth
-                    label="Target Date"
-                    InputLabelProps={{ shrink: true }}
-                    value={form.targetDate}
-                    onChange={(e) => handleChange("targetDate", e.target.value)}
-                    variant="outlined"
-                    size="small"
-                  />
-                </Grid>
-
+                {/* Submit Button */}
                 <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={3}
-                    label="Initial Comment"
-                    value={form.comment}
-                    onChange={(e) => handleChange("comment", e.target.value)}
-                  />
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Button component="label" variant="outlined">
-                    Upload Attachments
-                    <input hidden type="file" multiple onChange={handleFileUpload} />
-                  </Button>
-
-                  <Box mt={2}>
-                    {form.attachments.map((file, index) => (
-                      <Chip key={index} label={file.name} sx={{ mr: 1, mb: 1 }} />
-                    ))}
+                  <Box sx={{ display: "flex", gap: 2 }}>
+                    <Button
+                      variant="contained"
+                      color="success"
+                      size="large"
+                      fullWidth
+                      onClick={handleSubmit}
+                      disabled={submitting || loadingData || projects.length === 0 || users.length === 0}
+                    >
+                      {submitting ? "Creating..." : "✓ Create Task"}
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="large"
+                      onClick={() => navigate("/tasks")}
+                    >
+                      Cancel
+                    </Button>
                   </Box>
-                </Grid>
-
-                <Grid item xs={12}>
-                  <Button 
-                    variant="contained" 
-                    color="success"
-                    size="large"
-                    fullWidth
-                    onClick={handleSubmit} 
-                    disabled={submitting || loadingLookup}
-                  >
-                    {submitting ? "Creating..." : "✓ Create Task"}
-                  </Button>
                 </Grid>
               </Grid>
             </CardContent>
           </Card>
         </Grid>
 
+        {/* Right Column - Preview */}
         <Grid item xs={12} md={4}>
-          <Card sx={{ position: "sticky", top: 16, boxShadow: 3 }}>
+          <Card sx={{ position: "sticky", top: 16, boxShadow: 2 }}>
             <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>📋 Preview</Typography>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>
+                📋 Preview
+              </Typography>
               <Box sx={{ borderTop: "1px solid #ddd", pt: 2 }}>
-                <Typography variant="body2" sx={{ mb: 1 }}><strong>Task:</strong> {preview.issueActionItem || "(Enter issue item)"}</Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}><strong>Priority:</strong> {preview.priority || "(Select priority)"}</Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}><strong>Status:</strong> {preview.status}</Typography>
-                <Typography variant="body2" sx={{ mb: 1 }}><strong>Owner:</strong> {preview.ownerId || "(Select owner)"}</Typography>
-                <Typography variant="body2"><strong>Target Date:</strong> {preview.targetDate || "(No date)"}</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Task:</strong> {form.issueActionItem || "(Enter task)"}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Priority:</strong> {form.priority || "(Select)"}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Project:</strong> {projects.find(p => p.id == form.projectId)?.projectName || "(Select)"}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Owner:</strong> {users.find(u => u.id == form.ownerId)?.fullName || "(Select)"}
+                </Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  <strong>Status:</strong> {form.status}
+                </Typography>
+                <Typography variant="body2">
+                  <strong>Target Date:</strong> {form.targetDate || "(Not set)"}
+                </Typography>
               </Box>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={5000}
-        onClose={() => setError("")}
-      >
-        <Alert onClose={() => setError("")} severity="error" sx={{ width: "100%" }}>
-          {error}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess("")}
-      >
-        <Alert onClose={() => setSuccess("")} severity="success" sx={{ width: "100%" }}>
-          {success}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }
