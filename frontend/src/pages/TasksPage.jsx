@@ -81,6 +81,11 @@ export default function TasksPage() {
     navigate("/create-task");  // ✅ USE REACT ROUTER - No page reload!
   };
 
+  const handleEdit = (row) => {
+    console.log("🟡 Navigating to edit task:", row.id);
+    navigate(`/task/${row.id}`, { state: { isEdit: true, task: row } });
+  };
+
   const handleCreateOld = async () => {
     try {
       const fallbackProjectId = rows.find((r) => r.projectId)?.projectId;
@@ -141,7 +146,7 @@ export default function TasksPage() {
       width: 220,
       renderCell: (params) => (
         <>
-          <Button onClick={() => handleUpdate(params.row)}>Edit</Button>
+          <Button onClick={() => handleEdit(params.row)}>Edit</Button>
           <Button color="error" onClick={() => handleDelete(params.row.id)}>
             Delete
           </Button>

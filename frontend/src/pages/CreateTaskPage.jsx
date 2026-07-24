@@ -16,6 +16,7 @@ import {
 
 import { getAllProjects } from "../services/projectService";
 import { getUsers } from "../services/userServices";
+import { getAllTasks } from "../services/taskService";
 import { createTask } from "../services/taskService";
 
 export default function CreateTaskPage() {
@@ -111,8 +112,23 @@ export default function CreateTaskPage() {
     try {
       console.log("🟡 Creating task...");
       
+      // ✅ Fetch all tasks to get the next sequential number for this project
+      const allTasks = await getAllTasks();
+      const selectedProject = projects.find(p => p.id == form.projectId);
+      const projectCode = selectedProject?.projectCode || "TASK";
+      
+      // Filter tasks for this project and get the highest number
+      const projectTasks = allTasks.filter(t => t.projectId == form.projectId);
+      const maxNumber = projectTasks.length > 0 
+        ? Math.max(...projectTasks.map(t => {
+            const match = t.taskNo?.match(/\d+$/);
+            return match ? parseInt(match[0]) : 0;
+          }))
+        : 0;
+      const nextNumber = maxNumber + 1;
+      
       const taskData = {
-        taskNo: `TASK-${Date.now()}`,
+        taskNo: `${projectCode}-${nextNumber}`,  // ✅ Auto-increment: PROJ-1, PROJ-2, etc
         projectId: Number(form.projectId),
         issueActionItem: form.issueActionItem,
         description: form.description,
