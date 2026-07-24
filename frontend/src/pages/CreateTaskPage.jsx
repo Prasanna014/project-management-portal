@@ -115,12 +115,13 @@ export default function CreateTaskPage() {
 
   const handleSubmit = async () => {
     if (!form.issueActionItem || !form.priority || !form.projectId || !form.ownerId) {
-      setError("Issue, priority, project, and owner are required");
+      setError("❌ Required fields: Issue, Priority, Project, and Owner");
       return;
     }
 
     try {
       setSubmitting(true);
+      console.log("🟡 Creating task with data:", form);
 
       const created = await createTask({
         taskNo: `TASK-${Date.now()}`,
@@ -133,6 +134,8 @@ export default function CreateTaskPage() {
         targetDate: form.targetDate || null,
         createdBy: currentUserId
       });
+
+      console.log("🟢 Task created successfully:", created);
 
       if (form.comment && created?.id) {
         await addComment(created.id, {
@@ -147,7 +150,7 @@ export default function CreateTaskPage() {
         );
       }
 
-      setSuccess("Task created successfully");
+      setSuccess("✅ Task created successfully!");
       setForm({
         issueActionItem: "",
         description: "",
@@ -159,15 +162,18 @@ export default function CreateTaskPage() {
         comment: "",
         attachments: []
       });
-    } catch {
-      setError("Task creation failed");
+    } catch (err) {
+      console.error("🔴 Error creating task:", err);
+      setError("❌ Task creation failed: " + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: "1600px", margin: "auto" }}>
+    <Box sx={{ p: 3, maxWidth: "1200px", margin: "0 auto" }}>
+      <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold" }}>📝 Create New Task</Typography>
+      
       {error && (
         <Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <span>{error}</span>
@@ -177,11 +183,10 @@ export default function CreateTaskPage() {
         </Alert>
       )}
       
-      {loadingLookup && !loadTimeout && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-          <CircularProgress size={30} />
-          <Typography>🟡 Loading projects and users...</Typography>
-        </Box>
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {success}
+        </Alert>
       )}
       
       {loadTimeout && loadingLookup && (
@@ -193,40 +198,56 @@ export default function CreateTaskPage() {
         </Alert>
       )}
       
-      {!loadingLookup && projects.length === 0 && users.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          ⚠️ No projects available. Please <a href="/projects">create a project first</a>.
+      {loadingLookup && !loadTimeout && (
+        <Alert severity="info" sx={{ mb: 2, display: "flex", alignItems: "center", gap: 1 }}>
+          <CircularProgress size={20} />
+          <span>🟡 Loading projects and users...</span>
         </Alert>
       )}
       
-      {!loadingLookup && users.length === 0 && projects.length > 0 && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          ⚠️ No users available. Please check your database.
-        </Alert>
-      )}
-      
-      {!loadingLookup && projects.length === 0 && users.length === 0 && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          ❌ Failed to load data. Check backend connection or database.
-        </Alert>
-      )}
       <Grid container spacing={3}>
-        <Grid item xs={12} md={9}>
-          <Card>
+        <Grid item xs={12} md={8}>
+          <Card sx={{ boxShadow: 3 }}>
             <CardContent>
-              <Typography variant="h6" mb={2}>Create Task</Typography>
+              <Typography variant="h6" sx={{ mb: 3, fontWeight: "bold", color: "primary.main" }}>Task Details</Typography>
 
               <Grid container spacing={2}>
-                <Grid item xs={6}>
-                  <TextField fullWidth label="Task Number" value={preview.taskNo} disabled />
+                <Grid item xs={12} sm={6}>
+                  <TextField 
+                    fullWidth 
+                    label="Task Number" 
+                    value={preview.taskNo} 
+                    disabled 
+                    variant="outlined"
+                    size="small"
+                  />
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Status"
+                    value={form.status}
+                    onChange={(e) => handleChange("status", e.target.value)}
+                    variant="outlined"
+                    size="small"
+                  >
+                    {statuses.map((s) => (
+                      <MenuItem key={s} value={s}>{s}</MenuItem>
+                    ))}
+                  </TextField>
                 </Grid>
 
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Issue / Action Item"
+                    label="Issue / Action Item *"
                     value={form.issueActionItem}
                     onChange={(e) => handleChange("issueActionItem", e.target.value)}
+                    required
+                    variant="outlined"
+                    placeholder="Enter the task description"
                   />
                 </Grid>
 
@@ -241,13 +262,16 @@ export default function CreateTaskPage() {
                   />
                 </Grid>
 
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     select
                     fullWidth
-                    label="Priority"
+                    label="Priority *"
                     value={form.priority}
                     onChange={(e) => handleChange("priority", e.target.value)}
+                    required
+                    variant="outlined"
+                    size="small"
                   >
                     {priorities.map((p) => (
                       <MenuItem key={p} value={p}>{p}</MenuItem>
@@ -255,29 +279,57 @@ export default function CreateTaskPage() {
                   </TextField>
                 </Grid>
 
-      {/* PROJECTS DROPDOWN */}
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     select
                     fullWidth
-                    label="Project"
+                    label="Project *"
                     value={form.projectId}
                     onChange={(e) => handleChange("projectId", e.target.value)}
                     disabled={loadingLookup || projects.length === 0}
+                    required
+                    variant="outlined"
+                    size="small"
+                    helperText={loadingLookup ? "Loading..." : `${projects.length} projects available`}
                   >
                     {projects.length === 0 ? (
                       <MenuItem disabled>No projects available</MenuItem>
                     ) : (
                       projects.map((p) => (
                         <MenuItem key={p.id} value={p.id}>
-                          {p.projectName} {p.active ? "" : "(Inactive)"}
+                          {p.projectName}
                         </MenuItem>
                       ))
                     )}
                   </TextField>
                 </Grid>
 
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="Owner *"
+                    value={form.ownerId}
+                    onChange={(e) => handleChange("ownerId", e.target.value)}
+                    disabled={loadingLookup || users.length === 0}
+                    required
+                    variant="outlined"
+                    size="small"
+                    helperText={loadingLookup ? "Loading..." : `${users.length} users available`}
+                  >
+                    {users.length === 0 ? (
+                      <MenuItem disabled>No users available</MenuItem>
+                    ) : (
+                      users.map((u) => (
+                        <MenuItem key={u.id} value={u.id}>
+                          {u.fullName}
+                        </MenuItem>
+                      ))
+                    )}
+                  </TextField>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
                   <TextField
                     type="date"
                     fullWidth
@@ -285,42 +337,9 @@ export default function CreateTaskPage() {
                     InputLabelProps={{ shrink: true }}
                     value={form.targetDate}
                     onChange={(e) => handleChange("targetDate", e.target.value)}
+                    variant="outlined"
+                    size="small"
                   />
-                </Grid>
-
-                <Grid item xs={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Owner"
-                    value={form.ownerId}
-                    onChange={(e) => handleChange("ownerId", e.target.value)}
-                    disabled={loadingLookup || users.length === 0}
-                  >
-                    {users.length === 0 ? (
-                      <MenuItem disabled>No users available</MenuItem>
-                    ) : (
-                      users.map((u) => (
-                        <MenuItem key={u.id} value={u.id}>
-                          {u.fullName} {u.active ? "" : "(Inactive)"}
-                        </MenuItem>
-                      ))
-                    )}
-                  </TextField>
-                </Grid>
-
-                <Grid item xs={6}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="Status"
-                    value={form.status}
-                    onChange={(e) => handleChange("status", e.target.value)}
-                  >
-                    {statuses.map((s) => (
-                      <MenuItem key={s} value={s}>{s}</MenuItem>
-                    ))}
-                  </TextField>
                 </Grid>
 
                 <Grid item xs={12}>
@@ -348,8 +367,15 @@ export default function CreateTaskPage() {
                 </Grid>
 
                 <Grid item xs={12}>
-                  <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-                    Create Task
+                  <Button 
+                    variant="contained" 
+                    color="success"
+                    size="large"
+                    fullWidth
+                    onClick={handleSubmit} 
+                    disabled={submitting || loadingLookup}
+                  >
+                    {submitting ? "Creating..." : "✓ Create Task"}
                   </Button>
                 </Grid>
               </Grid>
@@ -357,15 +383,17 @@ export default function CreateTaskPage() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={3}>
-          <Card sx={{ position: "sticky", top: 16 }}>
+        <Grid item xs={12} md={4}>
+          <Card sx={{ position: "sticky", top: 16, boxShadow: 3 }}>
             <CardContent>
-              <Typography variant="h6">Preview</Typography>
-              <Typography mt={2}>Task: {preview.issueActionItem}</Typography>
-              <Typography>Priority: {preview.priority}</Typography>
-              <Typography>Status: {preview.status}</Typography>
-              <Typography>Owner ID: {preview.ownerId}</Typography>
-              <Typography>Target: {preview.targetDate}</Typography>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: "bold" }}>📋 Preview</Typography>
+              <Box sx={{ borderTop: "1px solid #ddd", pt: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}><strong>Task:</strong> {preview.issueActionItem || "(Enter issue item)"}</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}><strong>Priority:</strong> {preview.priority || "(Select priority)"}</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}><strong>Status:</strong> {preview.status}</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}><strong>Owner:</strong> {preview.ownerId || "(Select owner)"}</Typography>
+                <Typography variant="body2"><strong>Target Date:</strong> {preview.targetDate || "(No date)"}</Typography>
+              </Box>
             </CardContent>
           </Card>
         </Grid>
