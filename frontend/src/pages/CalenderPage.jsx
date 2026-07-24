@@ -114,7 +114,8 @@ export default function CalenderPage() {
 							</CardContent>
 						</Card>
 					</Grid>
-				))}
+				)))
+			}
 			</Grid>
 			<Snackbar
 				open={!!error}

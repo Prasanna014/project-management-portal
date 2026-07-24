@@ -8,7 +8,6 @@ import com.company.projectmanagement.entity.Project;
 import com.company.projectmanagement.entity.Task;
 import com.company.projectmanagement.repository.ProjectRepository;
 import com.company.projectmanagement.repository.TaskRepository;
-import com.company.projectmanagement.repository.TaskCommentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,7 +20,6 @@ public class SearchService {
 
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
-    private final TaskCommentRepository commentRepository;
 
     /* ================= TASK SEARCH ================= */
     public List<TaskDto> searchTasks(String keyword) {
