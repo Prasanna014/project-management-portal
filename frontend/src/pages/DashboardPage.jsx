@@ -41,6 +41,8 @@ export default function DashboardPage() {
 
   const loadDashboard = async () => {
     try {
+      console.log("🟡 Loading dashboard...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
       setLoading(true);
 
       const [summaryRes, statusRes, priorityRes, ownerRes] =
@@ -73,9 +75,12 @@ export default function DashboardPage() {
           tasks: value
         }))
       );
+
+      console.log("🟢 Dashboard loaded successfully:", { summaryRes, statusRes, priorityRes, ownerRes });
     } catch (err) {
-      console.error(err);
-      setError("Failed to load dashboard");
+      console.error("🔴 Dashboard error:", err);
+      console.error("Error message:", err.message);
+      setError("Failed to load dashboard: " + err.message);
     } finally {
       setLoading(false);
     }

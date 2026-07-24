@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Box, Button, Snackbar, Alert } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
+import { useNavigate } from "react-router-dom";
 
 import {
   getAllProjects,
@@ -8,12 +9,15 @@ import {
   updateProject,
   deleteProject
 } from "../services/projectService";
+import ProjectDialog from "./ProjectDialog";
 
 export default function ProjectPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [openDialog, setOpenDialog] = useState(false);
 
   const loadProjects = async () => {
     try {
@@ -43,17 +47,21 @@ export default function ProjectPage() {
     loadProjects();
   }, []);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
+    setOpenDialog(true);
+  };
+
+  const handleDialogSave = async (formData) => {
     try {
-      const newProject = {
-        projectCode: "PRJ-" + Date.now(),
-        projectName: "New Project",
-        description: "Created from UI",
+      console.log("Creating project from dialog:", formData);
+      await createProject({
+        projectCode: formData.code,
+        projectName: formData.name,
+        description: formData.description,
         active: true
-      };
-      console.log("Creating project:", newProject);
-      await createProject(newProject);
-      setSuccess("Project created");
+      });
+      setSuccess("Project created successfully!");
+      setOpenDialog(false);
       loadProjects();
     } catch (e) {
       console.error("Create failed:", e);
@@ -146,6 +154,12 @@ export default function ProjectPage() {
         message={success}
         autoHideDuration={3000}
         onClose={() => setSuccess("")}
+      />
+
+      <ProjectDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onSave={handleDialogSave}
       />
     </Box>
   );
