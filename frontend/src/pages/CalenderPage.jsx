@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar } from "@mui/material";
+import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar, Alert } from "@mui/material";
 import { getAllTasks } from "../services/taskService";
 
 export default function CalenderPage() {
@@ -10,11 +10,19 @@ export default function CalenderPage() {
 	useEffect(() => {
 		const load = async () => {
 			try {
+				console.log("🟡 Loading calendar tasks...");
+				console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
 				setLoading(true);
+				
 				const data = await getAllTasks();
+				console.log("🟢 Calendar tasks loaded:", data);
+				console.log("🔢 Total tasks:", data?.length || 0);
+				
 				setTasks(data || []);
-			} catch {
-				setError("Failed to load calendar data");
+			} catch (err) {
+				console.error("🔴 ERROR loading calendar:", err);
+				console.error("Error message:", err.message);
+				setError(`Failed to load calendar data: ${err.message}`);
 			} finally {
 				setLoading(false);
 			}
@@ -45,6 +53,11 @@ export default function CalenderPage() {
 	return (
 		<Box sx={{ p: 3 }}>
 			<Typography variant="h5" sx={{ mb: 2 }}>Task Calendar</Typography>
+			{error && (
+				<Alert severity="error" sx={{ mb: 2 }}>
+					{error}
+				</Alert>
+			)}
 			<Grid container spacing={2}>
 				{Object.keys(groupedByDate).map((dateKey) => (
 					<Grid item xs={12} md={6} lg={4} key={dateKey}>

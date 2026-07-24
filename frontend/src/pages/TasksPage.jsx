@@ -34,8 +34,12 @@ export default function TasksPage() {
 
   const loadTasks = async () => {
     try {
+      console.log("🟡 Loading tasks...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
       setLoading(true);
+      
       const tasks = await getAllTasks();
+      console.log("🟢 Tasks loaded:", tasks);
 
       let data = tasks || [];
 
@@ -53,9 +57,11 @@ export default function TasksPage() {
         data = data.filter(t => t.priority === priority);
       }
 
+      console.log("🔢 Filtered tasks count:", data.length);
       setRows(data);
 
     } catch (err) {
+      console.error("🔴 ERROR loading tasks:", err);
       handleApiError(err, setError);
     } finally {
       setLoading(false);
@@ -66,7 +72,12 @@ export default function TasksPage() {
     loadTasks();
   }, [search, status, priority]);
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
+    console.log("Navigating to create task page...");
+    window.location.href = "/create-task";
+  };
+
+  const handleCreateOld = async () => {
     try {
       const fallbackProjectId = rows.find((r) => r.projectId)?.projectId;
       if (!fallbackProjectId) {

@@ -6,7 +6,8 @@ import {
   CircularProgress,
   Grid,
   Card,
-  CardContent
+  CardContent,
+  Alert
 } from "@mui/material";
 
 import {
@@ -39,12 +40,19 @@ export default function ReportsPage() {
 
   const loadReports = async () => {
     try {
+      console.log("🟡 Loading reports...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
       setLoading(true);
 
       const [summaryRes, priorityRes] = await Promise.all([
         getTaskSummaryReport(),
         getPriorityReport(),
       ]);
+
+      console.log("🟢 Summary report loaded:", summaryRes);
+      console.log("📊 Total Tasks:", summaryRes?.totalCount || 0);
+      console.log("✅ Status Distribution:", summaryRes?.data);
+      console.log("🎯 Priority report loaded:", priorityRes);
 
       setSummary(summaryRes || { totalCount: 0, data: {} });
 
@@ -62,8 +70,10 @@ export default function ReportsPage() {
         }))
       );
 
-    } catch {
-      setError("Failed to load reports");
+    } catch (err) {
+      console.error("🔴 ERROR loading reports:", err);
+      console.error("Error message:", err.message);
+      setError(`Failed to load reports: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -83,6 +93,14 @@ export default function ReportsPage() {
 
   return (
     <Box sx={{ p: 3 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      <Typography variant="h5" sx={{ mb: 3 }}>
+        📊 Task Reports - Total Tasks: <strong>{summary?.totalCount || 0}</strong>
+      </Typography>
 
       <Typography variant="h4" sx={{ mb: 3 }}>
         Reports

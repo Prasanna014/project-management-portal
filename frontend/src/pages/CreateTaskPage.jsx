@@ -46,14 +46,36 @@ export default function CreateTaskPage() {
   useEffect(() => {
     const loadLookupData = async () => {
       try {
+        console.log("🟡 Loading projects and users for task creation...");
+        console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
+        
         const [projectData, userData] = await Promise.all([
           getAllProjects(),
           getUsers()
         ]);
-        setProjects((projectData || []).filter((p) => p.active));
-        setUsers((userData || []).filter((u) => u.active));
-      } catch {
-        setError("Failed to load projects/users");
+        
+        console.log("🟢 Raw project data:", projectData);
+        console.log("🟢 Raw user data:", userData);
+        
+        const activeProjects = (projectData || []).filter((p) => p.active);
+        const activeUsers = (userData || []).filter((u) => u.active);
+        
+        console.log("✅ Active projects:", activeProjects);
+        console.log("✅ Active users:", activeUsers);
+        
+        setProjects(activeProjects);
+        setUsers(activeUsers);
+        
+        if (activeProjects.length === 0) {
+          setError("⚠️ No active projects found. Please create a project first.");
+        }
+        if (activeUsers.length === 0) {
+          setError("⚠️ No active users found. Please add users first.");
+        }
+      } catch (err) {
+        console.error("🔴 ERROR loading projects/users:", err);
+        console.error("Error message:", err.message);
+        setError(`Failed to load projects/users: ${err.message}`);
       }
     };
 
