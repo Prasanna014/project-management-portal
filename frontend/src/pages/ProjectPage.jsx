@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, Snackbar } from "@mui/material";
+import { Box, Button, Snackbar, Alert } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
 import {
@@ -12,45 +12,55 @@ import {
 export default function ProjectPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const loadProjects = async () => {
     try {
+      console.log("🟡 Starting to load projects...");
+      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
       setLoading(true);
+      setError("");
+      
       const projects = await getAllProjects();
+      console.log("🟢 Projects loaded successfully:", projects);
+      console.log("🔢 Total projects:", projects?.length || 0);
+      
       setRows(projects || []);
+      
     } catch (e) {
-      console.error(e);
-      setError("Failed to load projects");
+      console.error("🔴 ERROR loading projects:", e);
+      console.error("Error message:", e.message);
+      console.error("Error details:", e);
+      setError(`Failed to load projects: ${e.message}`);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("📌 Component mounted - loading projects");
     loadProjects();
   }, []);
 
-  // ✅ CREATE
   const handleCreate = async () => {
     try {
-      await createProject({
+      const newProject = {
         projectCode: "PRJ-" + Date.now(),
         projectName: "New Project",
         description: "Created from UI",
         active: true
-      });
+      };
+      console.log("Creating project:", newProject);
+      await createProject(newProject);
       setSuccess("Project created");
       loadProjects();
     } catch (e) {
-      console.error(e);
-      setError("Create failed");
+      console.error("Create failed:", e);
+      setError("Create failed: " + e.message);
     }
   };
 
-  // ✅ UPDATE
   const handleUpdate = async (row) => {
     try {
       await updateProject(row.id, {
@@ -65,7 +75,6 @@ export default function ProjectPage() {
     }
   };
 
-  // ✅ DELETE
   const handleDelete = async (id) => {
     try {
       await deleteProject(id);
@@ -78,6 +87,7 @@ export default function ProjectPage() {
   };
 
   const columns = [
+    { field: "id", headerName: "ID", width: 80 },
     { field: "projectCode", headerName: "Project Code", width: 150 },
     { field: "projectName", headerName: "Project Name", width: 200 },
     { field: "description", headerName: "Description", width: 250 },
@@ -100,9 +110,21 @@ export default function ProjectPage() {
 
   return (
     <Box sx={{ p: 3 }}>
+      <h1>📊 Projects Page</h1>
+      <p>💻 API Base URL: {import.meta.env.VITE_API_BASE_URL}</p>
+      <p>📊 Total Rows: {rows.length}</p>
+      
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      
       <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
         Create Project
       </Button>
+
+      {loading && <p>⏳ Loading...</p>}
 
       <DataGrid
         rows={rows}
