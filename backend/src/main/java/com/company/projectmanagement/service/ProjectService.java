@@ -86,12 +86,10 @@ public class ProjectService {
 
     private Project mapToEntity(ProjectDto dto) {
         return Project.builder()
-                .id(dto.getId())
                 .projectCode(dto.getProjectCode())
                 .projectName(dto.getProjectName())
                 .description(dto.getDescription())
                 .active(dto.getActive())
-                .createdAt(dto.getCreatedAt())
                 .build();
     }
 }

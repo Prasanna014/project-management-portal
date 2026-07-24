@@ -86,7 +86,6 @@ public class TaskService {
 
     private Task mapToEntity(TaskDto dto) {
         return Task.builder()
-                .id(dto.getId())
                 .taskNo(dto.getTaskNo())
                 .projectId(dto.getProjectId())
                 .issueActionItem(dto.getIssueActionItem())
@@ -97,8 +96,6 @@ public class TaskService {
                 .targetDate(dto.getTargetDate())
                 .dateResolved(dto.getDateResolved())
                 .createdBy(dto.getCreatedBy())
-                .createdAt(dto.getCreatedAt())
-                .updatedAt(dto.getUpdatedAt())
                 .build();
     }
 }
