@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import {
   Box,
   Button,
   Snackbar,
   TextField,
-  MenuItem
+  MenuItem,
+  Alert,
+  Typography
 } from "@mui/material";
 
 import { DataGrid } from "@mui/x-data-grid";
@@ -21,6 +24,7 @@ import {
 
 
 export default function TasksPage() {
+  const navigate = useNavigate();
 
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -73,8 +77,8 @@ export default function TasksPage() {
   }, [search, status, priority]);
 
   const handleCreate = () => {
-    console.log("Navigating to create task page...");
-    window.location.href = "/create-task";
+    console.log("🟡 Navigating to create task page...");
+    navigate("/create-task");  // ✅ USE REACT ROUTER - No page reload!
   };
 
   const handleCreateOld = async () => {
@@ -148,13 +152,32 @@ export default function TasksPage() {
 
   return (
     <Box sx={{ p: 3 }}>
+      <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>📋 All Tasks</Typography>
+      <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
+        🌐 API: {import.meta.env.VITE_API_BASE_URL} | 📊 Total: {rows.length} tasks
+      </Typography>
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert severity="success" sx={{ mb: 2 }}>
+          {success}
+        </Alert>
+      )}
+
+      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
 
         <TextField
-          label="Search"
+          label="🔍 Search Tasks"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by issue"
+          size="small"
+          sx={{ minWidth: 200 }}
         />
 
         <TextField
@@ -163,8 +186,9 @@ export default function TasksPage() {
           value={status}
           onChange={(e) => setStatus(e.target.value)}
           sx={{ width: 150 }}
+          size="small"
         >
-          <MenuItem value="">All</MenuItem>
+          <MenuItem value="">All Status</MenuItem>
           <MenuItem value="Open">Open</MenuItem>
           <MenuItem value="In Progress">In Progress</MenuItem>
           <MenuItem value="Completed">Completed</MenuItem>
@@ -176,18 +200,27 @@ export default function TasksPage() {
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
           sx={{ width: 150 }}
+          size="small"
         >
-          <MenuItem value="">All</MenuItem>
+          <MenuItem value="">All Priority</MenuItem>
+          <MenuItem value="Critical">Critical</MenuItem>
           <MenuItem value="High">High</MenuItem>
           <MenuItem value="Medium">Medium</MenuItem>
           <MenuItem value="Low">Low</MenuItem>
         </TextField>
 
-        <Button variant="contained" onClick={handleCreate}>
-          Create Task
+        <Button 
+          variant="contained" 
+          color="success"
+          onClick={handleCreate}
+          sx={{ ml: "auto" }}
+        >
+          ➕ Create Task
         </Button>
 
       </Box>
+
+      {loading && <Typography>⏳ Loading tasks...</Typography>}
 
       <DataGrid
         rows={rows}
@@ -195,21 +228,28 @@ export default function TasksPage() {
         loading={loading}
         autoHeight
         getRowId={(row) => row.id || row.taskNo}
+        pageSizeOptions={[5, 10, 25]}
       />
 
       <Snackbar
         open={!!error}
-        message={error}
-        autoHideDuration={3000}
+        autoHideDuration={4000}
         onClose={() => setError("")}
-      />
+      >
+        <Alert onClose={() => setError("")} severity="error" sx={{ width: "100%" }}>
+          {error}
+        </Alert>
+      </Snackbar>
 
       <Snackbar
         open={!!success}
-        message={success}
         autoHideDuration={3000}
         onClose={() => setSuccess("")}
-      />
+      >
+        <Alert onClose={() => setSuccess("")} severity="success" sx={{ width: "100%" }}>
+          {success}
+        </Alert>
+      </Snackbar>
 
     </Box>
   );
