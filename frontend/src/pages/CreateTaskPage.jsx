@@ -9,7 +9,9 @@ import {
   Button,
   MenuItem,
   Snackbar,
-  Chip
+  Chip,
+  Alert,
+  CircularProgress
 } from "@mui/material";
 
 import { getAllProjects } from "../services/projectService";
@@ -42,10 +44,12 @@ export default function CreateTaskPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [loadingLookup, setLoadingLookup] = useState(true);
 
   useEffect(() => {
     const loadLookupData = async () => {
       try {
+        setLoadingLookup(true);
         console.log("🟡 Loading projects and users for task creation...");
         console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
         
@@ -57,25 +61,28 @@ export default function CreateTaskPage() {
         console.log("🟢 Raw project data:", projectData);
         console.log("🟢 Raw user data:", userData);
         
-        const activeProjects = (projectData || []).filter((p) => p.active);
-        const activeUsers = (userData || []).filter((u) => u.active);
+        // Load ALL projects/users, not just active ones
+        const allProjects = projectData || [];
+        const allUsers = userData || [];
         
-        console.log("✅ Active projects:", activeProjects);
-        console.log("✅ Active users:", activeUsers);
+        console.log("✅ All projects:", allProjects);
+        console.log("✅ All users:", allUsers);
         
-        setProjects(activeProjects);
-        setUsers(activeUsers);
+        setProjects(allProjects);
+        setUsers(allUsers);
         
-        if (activeProjects.length === 0) {
-          setError("⚠️ No active projects found. Please create a project first.");
+        if (allProjects.length === 0) {
+          setError("⚠️ No projects found. Please create a project first.");
         }
-        if (activeUsers.length === 0) {
-          setError("⚠️ No active users found. Please add users first.");
+        if (allUsers.length === 0) {
+          setError("⚠️ No users found. Please add users first.");
         }
       } catch (err) {
         console.error("🔴 ERROR loading projects/users:", err);
-        console.error("Error message:", err.message);
-        setError(`Failed to load projects/users: ${err.message}`);
+        console.error("Error details:", err.response?.data || err.message);
+        setError(`🔴 Failed to load data: ${err.message}`);
+      } finally {
+        setLoadingLookup(false);
       }
     };
 
@@ -155,6 +162,30 @@ export default function CreateTaskPage() {
 
   return (
     <Box sx={{ p: 3, maxWidth: "1600px", margin: "auto" }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+      
+      {loadingLookup && (
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+          <CircularProgress size={30} />
+          <Typography>🟡 Loading projects and users...</Typography>
+        </Box>
+      )}
+      
+      {!loadingLookup && projects.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          ⚠️ No projects available. Please <a href="/projects">create a project first</a>.
+        </Alert>
+      )}
+      
+      {!loadingLookup && users.length === 0 && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          ⚠️ No users available. Please check your database.
+        </Alert>
+      )}
       <Grid container spacing={3}>
         <Grid item xs={12} md={9}>
           <Card>
@@ -200,6 +231,7 @@ export default function CreateTaskPage() {
                   </TextField>
                 </Grid>
 
+      {/* PROJECTS DROPDOWN */}
                 <Grid item xs={6}>
                   <TextField
                     select
@@ -207,10 +239,17 @@ export default function CreateTaskPage() {
                     label="Project"
                     value={form.projectId}
                     onChange={(e) => handleChange("projectId", e.target.value)}
+                    disabled={loadingLookup || projects.length === 0}
                   >
-                    {projects.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>{p.projectName}</MenuItem>
-                    ))}
+                    {projects.length === 0 ? (
+                      <MenuItem disabled>No projects available</MenuItem>
+                    ) : (
+                      projects.map((p) => (
+                        <MenuItem key={p.id} value={p.id}>
+                          {p.projectName} {p.active ? "" : "(Inactive)"}
+                        </MenuItem>
+                      ))
+                    )}
                   </TextField>
                 </Grid>
 
@@ -232,10 +271,17 @@ export default function CreateTaskPage() {
                     label="Owner"
                     value={form.ownerId}
                     onChange={(e) => handleChange("ownerId", e.target.value)}
+                    disabled={loadingLookup || users.length === 0}
                   >
-                    {users.map((u) => (
-                      <MenuItem key={u.id} value={u.id}>{u.fullName}</MenuItem>
-                    ))}
+                    {users.length === 0 ? (
+                      <MenuItem disabled>No users available</MenuItem>
+                    ) : (
+                      users.map((u) => (
+                        <MenuItem key={u.id} value={u.id}>
+                          {u.fullName} {u.active ? "" : "(Inactive)"}
+                        </MenuItem>
+                      ))
+                    )}
                   </TextField>
                 </Grid>
 
@@ -301,8 +347,25 @@ export default function CreateTaskPage() {
         </Grid>
       </Grid>
 
-      <Snackbar open={!!error} message={error} autoHideDuration={3000} onClose={() => setError("")} />
-      <Snackbar open={!!success} message={success} autoHideDuration={3000} onClose={() => setSuccess("")} />
+      <Snackbar
+        open={!!error}
+        autoHideDuration={5000}
+        onClose={() => setError("")}
+      >
+        <Alert onClose={() => setError("")} severity="error" sx={{ width: "100%" }}>
+          {error}
+        </Alert>
+      </Snackbar>
+
+      <Snackbar
+        open={!!success}
+        autoHideDuration={3000}
+        onClose={() => setSuccess("")}
+      >
+        <Alert onClose={() => setSuccess("")} severity="success" sx={{ width: "100%" }}>
+          {success}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

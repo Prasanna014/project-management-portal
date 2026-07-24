@@ -44,22 +44,34 @@ export default function CalenderPage() {
 
 	if (loading) {
 		return (
-			<Box sx={{ p: 3 }}>
+			<Box sx={{ p: 3, display: "flex", alignItems: "center", gap: 2 }}>
 				<CircularProgress />
+				<Typography>🟡 Loading calendar tasks...</Typography>
 			</Box>
 		);
 	}
 
 	return (
 		<Box sx={{ p: 3 }}>
-			<Typography variant="h5" sx={{ mb: 2 }}>Task Calendar</Typography>
+			<Typography variant="h5" sx={{ mb: 2 }}>📅 Task Calendar</Typography>
 			{error && (
 				<Alert severity="error" sx={{ mb: 2 }}>
 					{error}
 				</Alert>
 			)}
+			
+			{!error && tasks.length === 0 && (
+				<Alert severity="info" sx={{ mb: 2 }}>
+					ℹ️ No tasks found. <a href="/create-task">Create a task</a>
+				</Alert>
+			)}
 			<Grid container spacing={2}>
-				{Object.keys(groupedByDate).map((dateKey) => (
+				{Object.keys(groupedByDate).length === 0 ? (
+					<Grid item xs={12}>
+						<Typography color="textSecondary">📄 No tasks with target dates</Typography>
+					</Grid>
+				) : (
+					Object.keys(groupedByDate).map((dateKey) => (
 					<Grid item xs={12} md={6} lg={4} key={dateKey}>
 						<Card>
 							<CardContent>
