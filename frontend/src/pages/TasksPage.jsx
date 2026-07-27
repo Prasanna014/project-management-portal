@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 
 import { DataGrid } from "@mui/x-data-grid";
+import SidebarPanel from "../components/SidebarPanel";
 import { handleApiError } from "../utils/errorHandler";
 
 
@@ -156,47 +157,49 @@ export default function TasksPage() {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>📋 All Tasks</Typography>
-      <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
-        🌐 API: {import.meta.env.VITE_API_BASE_URL} | 📊 Total: {rows.length} tasks
-      </Typography>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* MAIN CONTENT */}
+      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+        <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>📋 All Tasks</Typography>
+        <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
+          🌐 API: {import.meta.env.VITE_API_BASE_URL} | 📊 Total: {rows.length} tasks
+        </Typography>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-      {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }}>
+            {success}
+          </Alert>
+        )}
 
-      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
 
-        <TextField
-          label="🔍 Search Tasks"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by issue"
-          size="small"
-          sx={{ minWidth: 200 }}
-        />
+          <TextField
+            label="🔍 Search Tasks"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by issue"
+            size="small"
+            sx={{ minWidth: 200 }}
+          />
 
-        <TextField
-          select
-          label="Status"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          sx={{ width: 150 }}
-          size="small"
-        >
-          <MenuItem value="">All Status</MenuItem>
-          <MenuItem value="Open">Open</MenuItem>
-          <MenuItem value="In Progress">In Progress</MenuItem>
-          <MenuItem value="Completed">Completed</MenuItem>
+          <TextField
+            select
+            label="Status"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+            sx={{ width: 150 }}
+            size="small"
+          >
+            <MenuItem value="">All Status</MenuItem>
+            <MenuItem value="Open">Open</MenuItem>
+            <MenuItem value="In Progress">In Progress</MenuItem>
+            <MenuItem value="Completed">Completed</MenuItem>
         </TextField>
 
         <TextField
@@ -256,6 +259,44 @@ export default function TasksPage() {
         </Alert>
       </Snackbar>
 
+      </Box>
+
+      {/* SIDEBAR */}
+      <SidebarPanel title="Task Filters">
+        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: "#fff" }}>
+          Filter Options
+        </Typography>
+        <TextField
+          select
+          label="Status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{ mb: 2, "& .MuiOutlinedInput-root": { backgroundColor: "rgba(255,255,255,0.1)" } }}
+        >
+          <MenuItem value="">All Status</MenuItem>
+          <MenuItem value="Open">Open</MenuItem>
+          <MenuItem value="In Progress">In Progress</MenuItem>
+          <MenuItem value="Completed">Completed</MenuItem>
+        </TextField>
+
+        <TextField
+          select
+          label="Priority"
+          value={priority}
+          onChange={(e) => setPriority(e.target.value)}
+          fullWidth
+          size="small"
+          sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "rgba(255,255,255,0.1)" } }}
+        >
+          <MenuItem value="">All Priority</MenuItem>
+          <MenuItem value="Critical">Critical</MenuItem>
+          <MenuItem value="High">High</MenuItem>
+          <MenuItem value="Medium">Medium</MenuItem>
+          <MenuItem value="Low">Low</MenuItem>
+        </TextField>
+      </SidebarPanel>
     </Box>
   );
 }

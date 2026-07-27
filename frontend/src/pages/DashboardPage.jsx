@@ -6,9 +6,11 @@ import {
   CardContent,
   Typography,
   Snackbar,
-  CircularProgress
+  CircularProgress,
+  Button
 } from "@mui/material";
 
+import SidebarPanel from "../components/SidebarPanel";
 import {
   getDashboardSummary,
   getStatusSummary,
@@ -110,41 +112,43 @@ export default function DashboardPage() {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* ✅ STAT CARDS */}
-      <Grid container spacing={3}>
-        {stats.map((s, i) => (
-          <Grid item xs={12} sm={6} md={3} key={i}>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* MAIN CONTENT */}
+      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+        {/* ✅ STAT CARDS */}
+        <Grid container spacing={3}>
+          {stats.map((s, i) => (
+            <Grid item xs={12} sm={6} md={3} key={i}>
+              <Card>
+                <CardContent>
+                  <Typography>{s.label}</Typography>
+                  <Typography variant="h5">{s.value}</Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+
+        {/* ✅ CHARTS */}
+        <Grid container spacing={3} sx={{ mt: 2 }}>
+          {/* STATUS PIE */}
+          <Grid item xs={12} md={4}>
             <Card>
               <CardContent>
-                <Typography>{s.label}</Typography>
-                <Typography variant="h5">{s.value}</Typography>
+                <Typography>Status Distribution</Typography>
+                <ResponsiveContainer width="100%" height={250}>
+                  <PieChart>
+                    <Pie data={statusData} dataKey="value">
+                      {statusData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </Grid>
-        ))}
-      </Grid>
-
-      {/* ✅ CHARTS */}
-      <Grid container spacing={3} sx={{ mt: 2 }}>
-        {/* STATUS PIE */}
-        <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography>Status Distribution</Typography>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie data={statusData} dataKey="value">
-                    {statusData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </Grid>
 
         {/* PRIORITY BAR */}
         <Grid item xs={12} md={4}>
@@ -179,15 +183,29 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </Grid>
-      </Grid>
+        </Grid>
 
-      {/* ✅ ERROR */}
-      <Snackbar
-        open={!!error}
-        message={error}
-        autoHideDuration={3000}
-        onClose={() => setError("")}
-      />
+        {/* ✅ ERROR */}
+        <Snackbar
+          open={!!error}
+          message={error}
+          autoHideDuration={3000}
+          onClose={() => setError("")}
+        />
+      </Box>
+
+      {/* SIDEBAR */}
+      <SidebarPanel title="Dashboard Options">
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Export Report
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Refresh Data
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
+          Settings
+        </Button>
+      </SidebarPanel>
     </Box>
   );
 }

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  Snackbar
+  Snackbar,
+  Typography
 } from "@mui/material";
 
 import { DataGrid } from "@mui/x-data-grid";
+import SidebarPanel from "../components/SidebarPanel";
 
 import {
   getUsers,
@@ -106,37 +108,53 @@ export default function UsersPage() {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* MAIN CONTENT */}
+      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
 
-      {/* ✅ CREATE BUTTON */}
-      <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
-        Create User
-      </Button>
+        {/* ✅ CREATE BUTTON */}
+        <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
+          Create User
+        </Button>
 
-      {/* ✅ DATA GRID */}
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        loading={loading}
-        autoHeight
-        getRowId={(row) => row.id}
-      />
+        {/* ✅ DATA GRID */}
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          loading={loading}
+          autoHeight
+          getRowId={(row) => row.id}
+        />
 
-      {/* ✅ SNACKBARS */}
-      <Snackbar
-        open={!!error}
-        message={error}
-        autoHideDuration={3000}
-        onClose={() => setError("")}
-      />
+        {/* ✅ SNACKBARS */}
+        <Snackbar
+          open={!!error}
+          message={error}
+          autoHideDuration={3000}
+          onClose={() => setError("")}
+        />
 
-      <Snackbar
-        open={!!success}
-        message={success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess("")}
-      />
+        <Snackbar
+          open={!!success}
+          message={success}
+          autoHideDuration={3000}
+          onClose={() => setSuccess("")}
+        />
 
+      </Box>
+
+      {/* SIDEBAR */}
+      <SidebarPanel title="User Management">
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Export Users
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Import Users
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
+          Settings
+        </Button>
+      </SidebarPanel>
     </Box>
   );
 }

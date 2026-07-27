@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
+import SidebarPanel from "../components/SidebarPanel";
 import { getAllTasks } from "../services/taskService";
 
 export default function CalenderPage() {
@@ -79,50 +80,66 @@ export default function CalenderPage() {
 	}
 
 	return (
-		<Box sx={{ p: 3 }}>
-			<Typography variant="h5" sx={{ mb: 2 }}>📅 Task Calendar</Typography>
-			{error && (
-				<Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-					<span>{error}</span>
-					<Button size="small" variant="outlined" onClick={loadCalendarTasks} sx={{ ml: 2 }}>
-						Retry
-					</Button>
-				</Alert>
-			)}
-			
-			{!error && tasks.length === 0 && (
-				<Alert severity="info" sx={{ mb: 2 }}>
-					ℹ️ No tasks found. <a href="/create-task">Create a task</a>
-				</Alert>
-			)}
-			<Grid container spacing={2}>
-				{Object.keys(groupedByDate).length === 0 ? (
-					<Grid item xs={12}>
-						<Typography color="textSecondary">📄 No tasks with target dates</Typography>
-					</Grid>
-				) : (
-					Object.keys(groupedByDate).map((dateKey) => (
-					<Grid item xs={12} md={6} lg={4} key={dateKey}>
-						<Card>
-							<CardContent>
-								<Typography variant="h6" sx={{ mb: 1 }}>{dateKey}</Typography>
-								{groupedByDate[dateKey].map((task) => (
-									<Typography key={task.id || task.taskNo} sx={{ mb: 0.5 }}>
-										{task.taskNo} - {task.issueActionItem}
-									</Typography>
-								))}
-							</CardContent>
-						</Card>
-					</Grid>
-				)))
-			}
-			</Grid>
+		<Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+			{/* MAIN CONTENT */}
+			<Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+				<Typography variant="h5" sx={{ mb: 2 }}>📅 Task Calendar</Typography>
+				{error && (
+					<Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+						<span>{error}</span>
+						<Button size="small" variant="outlined" onClick={loadCalendarTasks} sx={{ ml: 2 }}>
+							Retry
+						</Button>
+					</Alert>
+				)}
+				
+				{!error && tasks.length === 0 && (
+					<Alert severity="info" sx={{ mb: 2 }}>
+						ℹ️ No tasks found. <a href="/create-task">Create a task</a>
+					</Alert>
+				)}
+				<Grid container spacing={2}>
+					{Object.keys(groupedByDate).length === 0 ? (
+						<Grid item xs={12}>
+							<Typography color="textSecondary">📄 No tasks with target dates</Typography>
+						</Grid>
+					) : (
+						Object.keys(groupedByDate).map((dateKey) => (
+						<Grid item xs={12} md={6} lg={4} key={dateKey}>
+							<Card>
+								<CardContent>
+									<Typography variant="h6" sx={{ mb: 1 }}>{dateKey}</Typography>
+									{groupedByDate[dateKey].map((task) => (
+										<Typography key={task.id || task.taskNo} sx={{ mb: 0.5 }}>
+											{task.taskNo} - {task.issueActionItem}
+										</Typography>
+									))}
+								</CardContent>
+							</Card>
+						</Grid>
+					)))
+				}
+				</Grid>
 			<Snackbar
 				open={!!error}
 				message={error}
 				autoHideDuration={3000}
 				onClose={() => setError("")}
 			/>
+			</Box>
+
+			{/* SIDEBAR */}
+			<SidebarPanel title="Calendar Options">
+				<Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+					Export Calendar
+				</Button>
+				<Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+					View by Week
+				</Button>
+				<Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
+					View by Month
+				</Button>
+			</SidebarPanel>
 		</Box>
 	);
 }

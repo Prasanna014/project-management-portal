@@ -10,6 +10,7 @@ import {
   TextField
 } from "@mui/material";
 
+import SidebarPanel from "../components/SidebarPanel";
 import {
   getNotifications,
   markAsRead,
@@ -64,29 +65,31 @@ export default function NotificationsPage() {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box display="flex" justifyContent="space-between" gap={2} mb={2}>
-        <Typography variant="h5">Notifications</Typography>
-        <TextField
-          size="small"
-          type="number"
-          label="User ID"
-          value={userId}
-          onChange={(e) => setUserId(Number(e.target.value || defaultUserId))}
-          sx={{ width: 140 }}
-        />
-        <Button variant="contained" onClick={handleMarkAll} disabled={!hasUnread || loading}>
-          Mark All Read
-        </Button>
-      </Box>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* MAIN CONTENT */}
+      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+        <Box display="flex" justifyContent="space-between" gap={2} mb={2}>
+          <Typography variant="h5">Notifications</Typography>
+          <TextField
+            size="small"
+            type="number"
+            label="User ID"
+            value={userId}
+            onChange={(e) => setUserId(Number(e.target.value || defaultUserId))}
+            sx={{ width: 140 }}
+          />
+          <Button variant="contained" onClick={handleMarkAll} disabled={!hasUnread || loading}>
+            Mark All Read
+          </Button>
+        </Box>
 
-      <List>
-        {notifications.map((n) => (
-          <ListItem
-            key={n.id}
-            sx={{
-              backgroundColor: n.isRead ? "#fff" : "#e3f2fd",
-              mb: 1
+        <List>
+          {notifications.map((n) => (
+            <ListItem
+              key={n.id}
+              sx={{
+                backgroundColor: n.isRead ? "#fff" : "#e3f2fd",
+                mb: 1
             }}
           >
             <ListItemText primary={n.title} secondary={n.message} />
@@ -98,21 +101,32 @@ export default function NotificationsPage() {
             )}
           </ListItem>
         ))}
-      </List>
+        </List>
 
-      <Snackbar
-        open={!!error}
-        message={error}
-        autoHideDuration={3000}
-        onClose={() => setError("")}
-      />
+        <Snackbar
+          open={!!error}
+          message={error}
+          autoHideDuration={3000}
+          onClose={() => setError("")}
+        />
 
-      <Snackbar
-        open={!!success}
-        message={success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess("")}
-      />
+        <Snackbar
+          open={!!success}
+          message={success}
+          autoHideDuration={3000}
+          onClose={() => setSuccess("")}
+        />
+      </Box>
+
+      {/* SIDEBAR */}
+      <SidebarPanel title="Notification Options">
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Notification Settings
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
+          Clear All
+        </Button>
+      </SidebarPanel>
     </Box>
   );
 }

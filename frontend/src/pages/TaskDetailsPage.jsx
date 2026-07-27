@@ -32,8 +32,7 @@ import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SendIcon from "@mui/icons-material/Send";
-import KeyboardArrowRightIcon from "@mui/icons-material/KeyboardArrowRight";
-import KeyboardArrowLeftIcon from "@mui/icons-material/KeyboardArrowLeft";
+import SidebarPanel from "../components/SidebarPanel";
 
 import { getTaskById, updateTask } from "../services/taskService";
 import { getComments, addComment, deleteComment } from "../services/taskCommentService";
@@ -64,9 +63,6 @@ export default function TaskDetailsPage() {
 
   // ✅ TAB MANAGEMENT
   const [activeTab, setActiveTab] = useState(0);
-  
-  // ✅ SIDEBAR COLLAPSE
-  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // ✅ DIALOGS
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
@@ -364,9 +360,9 @@ export default function TaskDetailsPage() {
       </Box>
 
       {/* ✅ MAIN LAYOUT - 65/35 WITH COLLAPSIBLE SIDEBAR */}
-      <Box sx={{ maxWidth: "1800px", mx: "auto", display: "flex", minHeight: "600px", position: "relative" }}>
+      <Box sx={{ maxWidth: "1800px", mx: "auto", display: "flex", minHeight: "600px", position: "relative", flex: 1 }}>
         {/* LEFT CONTENT AREA - 65% */}
-        <Box sx={{ flex: 1, p: 2.5, borderRight: sidebarOpen ? "1px solid #e0e0e0" : "none", overflowY: "auto" }}>
+        <Box sx={{ flex: 1, p: 2.5, borderRight: "1px solid #e0e0e0", overflowY: "auto" }}>
           
           {/* TABS */}
           <Box sx={{ mb: 2, borderBottom: "1px solid #e0e0e0" }}>
@@ -627,180 +623,128 @@ export default function TaskDetailsPage() {
           </Box>
         </Box>
 
-        {/* RIGHT SIDEBAR - COLLAPSIBLE - 35% */}
-        <Box
-          sx={{
-            width: sidebarOpen ? "320px" : "0px",
-            overflow: "hidden",
-            transition: "width 0.3s ease",
-            borderLeft: sidebarOpen ? "1px solid #e0e0e0" : "none",
-            backgroundColor: "#2563eb",
-            color: "#fff",
-            display: "flex",
-            flexDirection: "column"
-          }}
-        >
-          {/* SIDEBAR HEADER WITH COLLAPSE BUTTON */}
-          <Box sx={{ p: 2, borderBottom: "1px solid rgba(255,255,255,0.2)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
-              Task Actions
-            </Typography>
-            <IconButton
-              size="small"
-              onClick={() => setSidebarOpen(false)}
-              sx={{ color: "#fff", "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" } }}
-            >
-              <KeyboardArrowRightIcon fontSize="small" />
-            </IconButton>
-          </Box>
+        {/* RIGHT SIDEBAR - COLLAPSIBLE */}
+        <SidebarPanel title="Task Actions">
+          {/* ADD COMMENT BUTTON */}
+          <Button
+            fullWidth
+            variant="contained"
+            endIcon={<SendIcon />}
+            onClick={() => {
+              setCommentText("Test comment");
+              handleAddComment();
+            }}
+            sx={{
+              mb: 2,
+              backgroundColor: "#fff",
+              color: "#2563eb",
+              fontWeight: 600,
+              "&:hover": { backgroundColor: "#f0f0f0" }
+            }}
+          >
+            Add comment
+          </Button>
 
-          {/* SIDEBAR CONTENT */}
-          <Box sx={{ p: 2, flex: 1, overflowY: "auto" }}>
-            {/* ADD COMMENT BUTTON */}
-            <Button
-              fullWidth
-              variant="contained"
-              endIcon={<SendIcon />}
-              onClick={() => {
-                setCommentText("Test comment");
-                handleAddComment();
-              }}
-              sx={{
-                mb: 2,
-                backgroundColor: "#fff",
-                color: "#2563eb",
-                fontWeight: 600,
-                "&:hover": { backgroundColor: "#f0f0f0" }
-              }}
-            >
-              Add comment
-            </Button>
+          <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
 
-            <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
+          {/* ACTION BUTTONS */}
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<EditIcon />}
+            onClick={() => navigate(`/task/${taskId}?edit=true`)}
+            sx={{
+              mb: 1,
+              color: "#fff",
+              justifyContent: "flex-start",
+              fontSize: "0.9rem",
+              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
+            }}
+          >
+            Edit task
+          </Button>
 
-            {/* ACTION BUTTONS */}
-            <Button
-              fullWidth
-              variant="text"
-              startIcon={<EditIcon />}
-              onClick={() => navigate(`/task/${taskId}?edit=true`)}
-              sx={{
-                mb: 1,
-                color: "#fff",
-                justifyContent: "flex-start",
-                fontSize: "0.9rem",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-              }}
-            >
-              Edit task
-            </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={() => setOpenStatusDialog(true)}
+            sx={{
+              mb: 1,
+              color: "#fff",
+              justifyContent: "flex-start",
+              fontSize: "0.9rem",
+              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
+            }}
+          >
+            Change Status
+          </Button>
 
-            <Button
-              fullWidth
-              variant="text"
-              onClick={() => setOpenStatusDialog(true)}
-              sx={{
-                mb: 1,
-                color: "#fff",
-                justifyContent: "flex-start",
-                fontSize: "0.9rem",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-              }}
-            >
-              Change Status
-            </Button>
+          <Button
+            fullWidth
+            variant="text"
+            onClick={() => setOpenOwnershipDialog(true)}
+            sx={{
+              mb: 1,
+              color: "#fff",
+              justifyContent: "flex-start",
+              fontSize: "0.9rem",
+              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
+            }}
+          >
+            Reassign
+          </Button>
 
-            <Button
-              fullWidth
-              variant="text"
-              onClick={() => setOpenOwnershipDialog(true)}
-              sx={{
-                mb: 1,
-                color: "#fff",
-                justifyContent: "flex-start",
-                fontSize: "0.9rem",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-              }}
-            >
-              Reassign
-            </Button>
+          <Button
+            fullWidth
+            variant="text"
+            startIcon={<DeleteIcon />}
+            onClick={() => setOpenDeleteDialog(true)}
+            sx={{
+              mb: 3,
+              color: "#fff",
+              justifyContent: "flex-start",
+              fontSize: "0.9rem",
+              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
+            }}
+          >
+            Delete Task
+          </Button>
 
-            <Button
-              fullWidth
-              variant="text"
-              startIcon={<DeleteIcon />}
-              onClick={() => setOpenDeleteDialog(true)}
-              sx={{
-                mb: 3,
-                color: "#fff",
-                justifyContent: "flex-start",
-                fontSize: "0.9rem",
-                "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-              }}
-            >
-              Delete Task
-            </Button>
+          <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
 
-            <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
-
-            {/* COMMENTS LIST */}
-            <Typography variant="caption" sx={{ display: "block", mb: 1.5, fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", opacity: 0.8 }}>
-              Comments
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              {comments.length > 0 ? (
-                comments.slice(0, 5).map((comment) => (
-                  <Box key={comment.id} sx={{ pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                    <Box sx={{ display: "flex", gap: 0.8, alignItems: "flex-start" }}>
-                      <Avatar sx={{ bgcolor: "#fff", color: "#2563eb", width: 20, height: 20, fontSize: "0.7rem", flexShrink: 0 }}>
-                        {getUserName(comment.commentedBy)[0]}
-                      </Avatar>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography variant="caption" sx={{ display: "block", fontWeight: 600, fontSize: "0.75rem" }}>
-                          {getUserName(comment.commentedBy)}
-                        </Typography>
-                        <Typography variant="caption" sx={{ display: "block", fontSize: "0.65rem", opacity: 0.8, mb: 0.3 }}>
-                          {comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString() : "Just now"}
-                        </Typography>
-                        <Typography sx={{ fontSize: "0.75rem", lineHeight: 1.3, opacity: 0.9 }}>
-                          {comment.commentText.substring(0, 60)}...
-                        </Typography>
-                      </Box>
+          {/* COMMENTS LIST */}
+          <Typography variant="caption" sx={{ display: "block", mb: 1.5, fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", opacity: 0.8 }}>
+            Comments
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            {comments.length > 0 ? (
+              comments.slice(0, 5).map((comment) => (
+                <Box key={comment.id} sx={{ pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
+                  <Box sx={{ display: "flex", gap: 0.8, alignItems: "flex-start" }}>
+                    <Avatar sx={{ bgcolor: "#fff", color: "#2563eb", width: 20, height: 20, fontSize: "0.7rem", flexShrink: 0 }}>
+                      {getUserName(comment.commentedBy)[0]}
+                    </Avatar>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="caption" sx={{ display: "block", fontWeight: 600, fontSize: "0.75rem" }}>
+                        {getUserName(comment.commentedBy)}
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: "block", fontSize: "0.65rem", opacity: 0.8, mb: 0.3 }}>
+                        {comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString() : "Just now"}
+                      </Typography>
+                      <Typography sx={{ fontSize: "0.75rem", lineHeight: 1.3, opacity: 0.9 }}>
+                        {comment.commentText.substring(0, 60)}...
+                      </Typography>
                     </Box>
                   </Box>
-                ))
-              ) : (
-                <Typography variant="caption" sx={{ fontSize: "0.75rem", opacity: 0.8 }}>
-                  No comments yet
-                </Typography>
-              )}
-            </Box>
+                </Box>
+              ))
+            ) : (
+              <Typography variant="caption" sx={{ fontSize: "0.75rem", opacity: 0.8 }}>
+                No comments yet
+              </Typography>
+            )}
           </Box>
-        </Box>
-
-        {/* COLLAPSE BUTTON (When sidebar closed) */}
-        {!sidebarOpen && (
-          <Box
-            sx={{
-              width: "40px",
-              backgroundColor: "#2563eb",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              "&:hover": { backgroundColor: "#1d4ed8" },
-              transition: "background-color 0.2s"
-            }}
-            onClick={() => setSidebarOpen(true)}
-          >
-            <IconButton
-              size="small"
-              sx={{ color: "#fff" }}
-            >
-              <KeyboardArrowLeftIcon fontSize="small" />
-            </IconButton>
-          </Box>
-        )}
+        </SidebarPanel>
       </Box>
 
       {/* ✅ DIALOGS */}

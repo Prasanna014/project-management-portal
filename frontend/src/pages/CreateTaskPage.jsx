@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
-  Grid,
   Card,
   CardContent,
   TextField,
@@ -11,13 +10,16 @@ import {
   MenuItem,
   Alert,
   CircularProgress,
+  Avatar,
+  Divider,
   Paper
 } from "@mui/material";
+import CloudUploadIcon from "@mui/icons-material/CloudUpload";
+import DeleteIcon from "@mui/icons-material/Delete";
 
 import { getAllProjects } from "../services/projectService";
 import { getUsers } from "../services/userServices";
-import { getAllTasks } from "../services/taskService";
-import { createTask } from "../services/taskService";
+import { getAllTasks, createTask } from "../services/taskService";
 
 export default function CreateTaskPage() {
   const navigate = useNavigate();
@@ -39,9 +41,11 @@ export default function CreateTaskPage() {
     status: "Open"
   });
 
+  const [attachments, setAttachments] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   // Load projects and users on mount
   useEffect(() => {
@@ -52,7 +56,6 @@ export default function CreateTaskPage() {
   const loadData = async () => {
     setLoadingData(true);
     setLoadingError("");
-    console.log("🟡 Loading projects and users...");
     
     try {
       const [projectsRes, usersRes] = await Promise.all([
@@ -81,8 +84,60 @@ export default function CreateTaskPage() {
   };
 
   const handleChange = (field, value) => {
-    console.log(`Updating form field: ${field} = ${value}`);
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case "Critical":
+        return "#ef4444";
+      case "High":
+        return "#f97316";
+      case "Medium":
+        return "#3b82f6";
+      case "Low":
+        return "#10b981";
+      default:
+        return "#6b7280";
+    }
+  };
+
+  // File upload handlers
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      addFiles(files);
+    }
+  };
+
+  const handleFileInput = (e) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(e.target.files);
+    }
+  };
+
+  const addFiles = (files) => {
+    Array.from(files).forEach(file => {
+      setAttachments(prev => [...prev, { id: Date.now() + Math.random(), name: file.name, file }]);
+    });
+  };
+
+  const removeAttachment = (id) => {
+    setAttachments(prev => prev.filter(att => att.id !== id));
   };
 
   const handleSubmit = async () => {
@@ -90,7 +145,7 @@ export default function CreateTaskPage() {
     
     // Validation
     if (!form.issueActionItem.trim()) {
-      setSubmitError("Issue/Action Item is required");
+      setSubmitError("Task name is required");
       return;
     }
     if (!form.priority) {
@@ -101,85 +156,365 @@ export default function CreateTaskPage() {
       setSubmitError("Project is required");
       return;
     }
-    if (!form.ownerId) {
-      setSubmitError("Owner is required");
-      return;
-    }
-
-    setSubmitting(true);
-    setSubmitError("");
 
     try {
-      console.log("🟡 Creating task...");
-      
-      // ✅ Fetch all tasks to get the next sequential number for this project
+      setSubmitting(true);
+      setSubmitError("");
+
+      // Get project code for task numbering
+      const project = projects.find(p => p.id == form.projectId);
+      const projectCode = project?.name?.substring(0, 3).toUpperCase() || "TSK";
+
+      // Get all tasks to calculate next number
       const allTasks = await getAllTasks();
-      const selectedProject = projects.find(p => p.id == form.projectId);
-      const projectCode = selectedProject?.projectCode || "TASK";
+      const projectTasks = allTasks.filter(t => t.projectId == Number(form.projectId));
       
-      // Filter tasks for this project and get the highest number
-      const projectTasks = allTasks.filter(t => t.projectId == form.projectId);
       const maxNumber = projectTasks.length > 0 
         ? Math.max(...projectTasks.map(t => {
             const match = t.taskNo?.match(/\d+$/);
             return match ? parseInt(match[0]) : 0;
           }))
         : 0;
+
       const nextNumber = maxNumber + 1;
-      
-      const taskData = {
-        taskNo: `${projectCode}-${nextNumber}`,  // ✅ Auto-increment: PROJ-1, PROJ-2, etc
+      const taskNo = `${projectCode}-${nextNumber}`;
+
+      // Create task
+      const newTask = {
+        taskNo,
         projectId: Number(form.projectId),
         issueActionItem: form.issueActionItem,
         description: form.description,
         priority: form.priority,
-        status: form.status,
-        ownerId: Number(form.ownerId),
-        targetDate: form.targetDate || null,
+        status: "Open",
+        ownerId: form.ownerId ? Number(form.ownerId) : currentUserId,
+        targetDate: form.targetDate,
         createdBy: currentUserId
       };
 
-      console.log("📤 Sending task data:", taskData);
-      const result = await createTask(taskData);
-      
-      console.log("✅ Task created successfully:", result);
+      console.log("🟡 Creating task:", newTask);
+      const result = await createTask(newTask);
+      console.log("✅ Task created:", result);
+
       setSubmitSuccess(true);
-
-      // Reset form
-      setForm({
-        issueActionItem: "",
-        description: "",
-        priority: "Medium",
-        projectId: "",
-        ownerId: "",
-        targetDate: "",
-        status: "Open"
-      });
-
-      // Redirect after success
       setTimeout(() => {
-        console.log("Redirecting to /tasks");
         navigate("/tasks");
       }, 1500);
+
     } catch (err) {
-      console.error("❌ Error creating task:", err.message);
-      setSubmitError(`Failed to create task: ${err.message}`);
+      console.error("❌ Error creating task:", err);
+      setSubmitError(`Error: ${err.message}`);
     } finally {
       setSubmitting(false);
     }
   };
 
-  console.log("🟢 CreateTaskPage rendering | loadingData:", loadingData, "| projects:", projects.length, "| users:", users.length);
+  if (loadingData) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <Box sx={{ p: 3 }}>
-      {/* Header */}
-      <Typography variant="h4" sx={{ mb: 1, fontWeight: "bold" }}>
-        ➕ Create New Task
-      </Typography>
-      <Typography variant="body2" sx={{ mb: 3, color: "text.secondary" }}>
-        Fill in the form below to create a new task
-      </Typography>
+    <Box sx={{ backgroundColor: "#f5f5f5", minHeight: "100vh", p: 3 }}>
+      <Box sx={{ maxWidth: "800px", mx: "auto" }}>
+        {/* HEADER */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Create Task
+          </Typography>
+          <Typography variant="body2" color="textSecondary">
+            Tasks / Create Task
+          </Typography>
+        </Box>
+
+        {/* ALERTS */}
+        {loadingError && <Alert severity="error" sx={{ mb: 2 }}>{loadingError}</Alert>}
+        {submitError && <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>}
+        {submitSuccess && <Alert severity="success" sx={{ mb: 2 }}>Task created successfully! Redirecting...</Alert>}
+
+        {/* TASK INFORMATION CARD */}
+        <Card sx={{ mb: 3, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5 }}>
+              Task Information
+            </Typography>
+
+            {/* PROJECT ROW */}
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2.5 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                  Project *
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  value={form.projectId}
+                  onChange={(e) => handleChange("projectId", e.target.value)}
+                  size="small"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "#fff",
+                      borderRadius: "6px"
+                    }
+                  }}
+                >
+                  <MenuItem value="">Select Project</MenuItem>
+                  {projects.map((proj) => (
+                    <MenuItem key={proj.id} value={proj.id}>
+                      {proj.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                  Priority *
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  value={form.priority}
+                  onChange={(e) => handleChange("priority", e.target.value)}
+                  size="small"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "#fff",
+                      borderRadius: "6px"
+                    }
+                  }}
+                >
+                  {["Critical", "High", "Medium", "Low"].map((priority) => (
+                    <MenuItem key={priority} value={priority}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: "12px",
+                            height: "12px",
+                            borderRadius: "50%",
+                            backgroundColor: getPriorityColor(priority)
+                          }}
+                        />
+                        {priority}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            </Box>
+
+            {/* TASK NAME ROW */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                Task *
+              </Typography>
+              <TextField
+                fullWidth
+                placeholder="Enter task name"
+                value={form.issueActionItem}
+                onChange={(e) => handleChange("issueActionItem", e.target.value)}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "#fff",
+                    borderRadius: "6px"
+                  }
+                }}
+              />
+            </Box>
+
+            {/* DESCRIPTION ROW */}
+            <Box sx={{ mb: 2.5 }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                Description
+              </Typography>
+              <TextField
+                fullWidth
+                multiline
+                rows={4}
+                placeholder="Enter task description"
+                value={form.description}
+                onChange={(e) => handleChange("description", e.target.value)}
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    backgroundColor: "#fff",
+                    borderRadius: "6px"
+                  }
+                }}
+              />
+            </Box>
+
+            {/* OWNER & TARGET DATE ROW */}
+            <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2.5 }}>
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                  Owner
+                </Typography>
+                <TextField
+                  fullWidth
+                  select
+                  value={form.ownerId}
+                  onChange={(e) => handleChange("ownerId", e.target.value)}
+                  size="small"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "#fff",
+                      borderRadius: "6px"
+                    }
+                  }}
+                >
+                  <MenuItem value="">Select Owner</MenuItem>
+                  {users.map((user) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: "0.7rem", bgcolor: "#1976d2" }}>
+                          {user.fullName?.[0] || "U"}
+                        </Avatar>
+                        {user.fullName}
+                      </Box>
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+
+              <Box>
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
+                  Target Date
+                </Typography>
+                <TextField
+                  fullWidth
+                  type="date"
+                  value={form.targetDate}
+                  onChange={(e) => handleChange("targetDate", e.target.value)}
+                  size="small"
+                  sx={{
+                    "& .MuiOutlinedInput-root": {
+                      backgroundColor: "#fff",
+                      borderRadius: "6px"
+                    }
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* ATTACHMENTS CARD */}
+        <Card sx={{ mb: 3, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5 }}>
+              Attachments
+            </Typography>
+
+            {/* DRAG & DROP ZONE */}
+            <Paper
+              onDragEnter={handleDrag}
+              onDragLeave={handleDrag}
+              onDragOver={handleDrag}
+              onDrop={handleDrop}
+              sx={{
+                p: 3,
+                textAlign: "center",
+                border: "2px dashed",
+                borderColor: dragActive ? "#1976d2" : "#e0e0e0",
+                backgroundColor: dragActive ? "#e3f2fd" : "#fafafa",
+                borderRadius: "8px",
+                cursor: "pointer",
+                transition: "all 0.3s ease",
+                mb: 2,
+                "&:hover": {
+                  borderColor: "#1976d2",
+                  backgroundColor: "#e3f2fd"
+                }
+              }}
+            >
+              <input
+                type="file"
+                multiple
+                onChange={handleFileInput}
+                style={{ display: "none" }}
+                id="file-input"
+              />
+              <label htmlFor="file-input" style={{ cursor: "pointer", display: "block" }}>
+                <CloudUploadIcon sx={{ fontSize: 48, color: "#1976d2", mb: 1 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Drag & drop files here or click to browse
+                </Typography>
+                <Typography variant="caption" color="textSecondary">
+                  PDF, DOC, XLS, PNG, JPG, etc. (Max 10 MB)
+                </Typography>
+              </label>
+            </Paper>
+
+            {/* ATTACHMENTS LIST */}
+            {attachments.length > 0 && (
+              <Box>
+                <Divider sx={{ mb: 2 }} />
+                <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, fontSize: "0.9rem" }}>
+                  Attached Files ({attachments.length})
+                </Typography>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                  {attachments.map((att) => (
+                    <Box
+                      key={att.id}
+                      sx={{
+                        p: 1.5,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        backgroundColor: "#f9f9f9",
+                        borderRadius: "6px",
+                        border: "1px solid #e0e0e0"
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                        📄 {att.name}
+                      </Typography>
+                      <Button
+                        size="small"
+                        color="error"
+                        startIcon={<DeleteIcon />}
+                        onClick={() => removeAttachment(att.id)}
+                        sx={{ fontSize: "0.8rem" }}
+                      >
+                        Remove
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ACTION BUTTONS */}
+        <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/tasks")}
+            disabled={submitting}
+            sx={{ px: 3 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={submitting || !form.issueActionItem || !form.projectId}
+            sx={{ px: 3 }}
+          >
+            {submitting ? "Creating..." : "Create Task"}
+          </Button>
+        </Box>
+      </Box>
+    </Box>
+  );
+}
 
       {/* Error Messages */}
       {loadingError && (

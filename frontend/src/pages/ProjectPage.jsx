@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { Box, Button, Snackbar, Alert } from "@mui/material";
+import { Box, Button, Snackbar, Alert, TextField } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useNavigate } from "react-router-dom";
 
+import SidebarPanel from "../components/SidebarPanel";
 import {
   getAllProjects,
   createProject,
@@ -117,50 +118,66 @@ export default function ProjectPage() {
   ];
 
   return (
-    <Box sx={{ p: 3 }}>
-      <h1>📊 Projects Page</h1>
-      <p>💻 API Base URL: {import.meta.env.VITE_API_BASE_URL}</p>
-      <p>📊 Total Rows: {rows.length}</p>
-      
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-      
-      <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
-        Create Project
-      </Button>
+    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
+      {/* MAIN CONTENT */}
+      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+        <h1>📊 Projects Page</h1>
+        <p>💻 API Base URL: {import.meta.env.VITE_API_BASE_URL}</p>
+        <p>📊 Total Rows: {rows.length}</p>
+        
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
+        
+        <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
+          Create Project
+        </Button>
 
-      {loading && <p>⏳ Loading...</p>}
+        {loading && <p>⏳ Loading...</p>}
 
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        loading={loading}
-        autoHeight
-        getRowId={(row) => row.id}
-      />
+        <DataGrid
+          rows={rows}
+          columns={columns}
+          loading={loading}
+          autoHeight
+          getRowId={(row) => row.id}
+        />
 
-      <Snackbar
-        open={!!error}
-        message={error}
-        autoHideDuration={3000}
-        onClose={() => setError("")}
-      />
+        <Snackbar
+          open={!!error}
+          message={error}
+          autoHideDuration={3000}
+          onClose={() => setError("")}
+        />
 
-      <Snackbar
-        open={!!success}
-        message={success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess("")}
-      />
+        <Snackbar
+          open={!!success}
+          message={success}
+          autoHideDuration={3000}
+          onClose={() => setSuccess("")}
+        />
 
-      <ProjectDialog
-        open={openDialog}
-        onClose={() => setOpenDialog(false)}
-        onSave={handleDialogSave}
-      />
+        <ProjectDialog
+          open={openDialog}
+          onClose={() => setOpenDialog(false)}
+          onSave={handleDialogSave}
+        />
+      </Box>
+
+      {/* SIDEBAR */}
+      <SidebarPanel title="Project Actions">
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Export Projects
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
+          Import Projects
+        </Button>
+        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
+          Settings
+        </Button>
+      </SidebarPanel>
     </Box>
   );
 }
