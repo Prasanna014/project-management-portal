@@ -2,6 +2,8 @@
 package com.company.projectmanagement.entity;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDateTime;
@@ -23,13 +25,25 @@ public class Project {
     private Long id;
 
     @Column(name = "project_code", nullable = false, unique = true)
+    @NotBlank
+    @Size(max = 255)
     private String projectCode;
 
     @Column(name = "project_name", nullable = false, unique = true)
+    @NotBlank
+    @Size(max = 255)
     private String projectName;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
+
+        @Column(name = "workflow_id")
+        private Long workflowId;
+
+        @ManyToOne(fetch = FetchType.LAZY)
+        @JoinColumn(name = "workflow_id", insertable = false, updatable = false,
+            foreignKey = @ForeignKey(name = "projects_workflow_fk"))
+        private WorkflowDefinition workflow;
 
     @Column(name = "active")
     private Boolean active;

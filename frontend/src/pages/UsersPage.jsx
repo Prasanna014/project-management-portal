@@ -7,7 +7,6 @@ import {
 } from "@mui/material";
 
 import { DataGrid } from "@mui/x-data-grid";
-import SidebarPanel from "../components/SidebarPanel";
 
 import {
   getUsers,
@@ -108,9 +107,7 @@ export default function UsersPage() {
   ];
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+    <Box>
 
         {/* ✅ CREATE BUTTON */}
         <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
@@ -141,20 +138,6 @@ export default function UsersPage() {
           onClose={() => setSuccess("")}
         />
 
-      </Box>
-
-      {/* SIDEBAR */}
-      <SidebarPanel title="User Management">
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Export Users
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Import Users
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-          Settings
-        </Button>
-      </SidebarPanel>
     </Box>
   );
 }

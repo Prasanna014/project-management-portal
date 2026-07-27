@@ -1,9 +1,7 @@
---CREATE SCHEMA IF NOT EXISTS tracker;
-
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS tracker;
 
--- Users table
+-- Existing core tables
 CREATE TABLE IF NOT EXISTS tracker.users (
     id BIGSERIAL PRIMARY KEY,
     employee_id VARCHAR(255) NOT NULL UNIQUE,
@@ -17,7 +15,6 @@ CREATE TABLE IF NOT EXISTS tracker.users (
     CONSTRAINT users_employee_id_unique UNIQUE (employee_id)
 );
 
--- Projects table
 CREATE TABLE IF NOT EXISTS tracker.projects (
     id BIGSERIAL PRIMARY KEY,
     project_code VARCHAR(255) NOT NULL UNIQUE,
@@ -29,7 +26,6 @@ CREATE TABLE IF NOT EXISTS tracker.projects (
     CONSTRAINT projects_name_unique UNIQUE (project_name)
 );
 
--- Tasks table
 CREATE TABLE IF NOT EXISTS tracker.tasks (
     id BIGSERIAL PRIMARY KEY,
     task_no VARCHAR(255) NOT NULL UNIQUE,
@@ -48,7 +44,6 @@ CREATE TABLE IF NOT EXISTS tracker.tasks (
     CONSTRAINT tasks_project_id_fk FOREIGN KEY (project_id) REFERENCES tracker.projects(id)
 );
 
--- Task Comments table
 CREATE TABLE IF NOT EXISTS tracker.task_comments (
     id BIGSERIAL PRIMARY KEY,
     task_id BIGINT NOT NULL REFERENCES tracker.tasks(id),
@@ -58,7 +53,6 @@ CREATE TABLE IF NOT EXISTS tracker.task_comments (
     CONSTRAINT task_comments_task_fk FOREIGN KEY (task_id) REFERENCES tracker.tasks(id)
 );
 
--- Task Attachments table
 CREATE TABLE IF NOT EXISTS tracker.task_attachments (
     id BIGSERIAL PRIMARY KEY,
     task_id BIGINT NOT NULL REFERENCES tracker.tasks(id),
@@ -70,7 +64,6 @@ CREATE TABLE IF NOT EXISTS tracker.task_attachments (
     CONSTRAINT task_attachments_task_fk FOREIGN KEY (task_id) REFERENCES tracker.tasks(id)
 );
 
--- Notifications table
 CREATE TABLE IF NOT EXISTS tracker.notifications (
     id BIGSERIAL PRIMARY KEY,
     user_id BIGINT NOT NULL REFERENCES tracker.users(id),
@@ -84,7 +77,6 @@ CREATE TABLE IF NOT EXISTS tracker.notifications (
     CONSTRAINT notifications_task_fk FOREIGN KEY (task_id) REFERENCES tracker.tasks(id)
 );
 
--- Activity History table
 CREATE TABLE IF NOT EXISTS tracker.activity_history (
     id BIGSERIAL PRIMARY KEY,
     task_id BIGINT NOT NULL REFERENCES tracker.tasks(id),
@@ -96,18 +88,318 @@ CREATE TABLE IF NOT EXISTS tracker.activity_history (
     CONSTRAINT activity_history_task_fk FOREIGN KEY (task_id) REFERENCES tracker.tasks(id)
 );
 
--- Create indexes for better query performance
-CREATE INDEX idx_tasks_project_id ON tracker.tasks(project_id);
-CREATE INDEX idx_tasks_owner_id ON tracker.tasks(owner_id);
-CREATE INDEX idx_tasks_status ON tracker.tasks(status);
-CREATE INDEX idx_tasks_priority ON tracker.tasks(priority);
-CREATE INDEX idx_task_comments_task_id ON tracker.task_comments(task_id);
-CREATE INDEX idx_task_attachments_task_id ON tracker.task_attachments(task_id);
-CREATE INDEX idx_notifications_user_id ON tracker.notifications(user_id);
-CREATE INDEX idx_notifications_task_id ON tracker.notifications(task_id);
-CREATE INDEX idx_activity_history_task_id ON tracker.activity_history(task_id);
+-- Configurable organization module
+CREATE TABLE IF NOT EXISTS tracker.departments (
+    id BIGSERIAL PRIMARY KEY,
+    department_code VARCHAR(100) NOT NULL,
+    department_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT departments_code_unique UNIQUE (department_code),
+    CONSTRAINT departments_name_unique UNIQUE (department_name)
+);
 
--- Insert sample data for testing
+-- Configurable RBAC module
+CREATE TABLE IF NOT EXISTS tracker.roles (
+    id BIGSERIAL PRIMARY KEY,
+    role_key VARCHAR(100) NOT NULL,
+    role_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    system_role BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT roles_key_unique UNIQUE (role_key),
+    CONSTRAINT roles_name_unique UNIQUE (role_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.permissions (
+    id BIGSERIAL PRIMARY KEY,
+    permission_key VARCHAR(150) NOT NULL,
+    permission_name VARCHAR(255) NOT NULL,
+    module_name VARCHAR(100),
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT permissions_key_unique UNIQUE (permission_key),
+    CONSTRAINT permissions_name_unique UNIQUE (permission_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.role_permissions (
+    role_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    granted_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    granted_by BIGINT,
+    PRIMARY KEY (role_id, permission_id),
+    CONSTRAINT role_permissions_role_fk FOREIGN KEY (role_id) REFERENCES tracker.roles(id),
+    CONSTRAINT role_permissions_permission_fk FOREIGN KEY (permission_id) REFERENCES tracker.permissions(id),
+    CONSTRAINT role_permissions_granted_by_fk FOREIGN KEY (granted_by) REFERENCES tracker.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.user_roles (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    assigned_by BIGINT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    PRIMARY KEY (user_id, role_id),
+    CONSTRAINT user_roles_user_fk FOREIGN KEY (user_id) REFERENCES tracker.users(id),
+    CONSTRAINT user_roles_role_fk FOREIGN KEY (role_id) REFERENCES tracker.roles(id),
+    CONSTRAINT user_roles_assigned_by_fk FOREIGN KEY (assigned_by) REFERENCES tracker.users(id)
+);
+
+-- Configurable task catalogs
+CREATE TABLE IF NOT EXISTS tracker.task_statuses (
+    id BIGSERIAL PRIMARY KEY,
+    status_key VARCHAR(100) NOT NULL,
+    status_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    color_code VARCHAR(20),
+    is_terminal BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT task_statuses_key_unique UNIQUE (status_key),
+    CONSTRAINT task_statuses_name_unique UNIQUE (status_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.task_priorities (
+    id BIGSERIAL PRIMARY KEY,
+    priority_key VARCHAR(100) NOT NULL,
+    priority_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    color_code VARCHAR(20),
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT task_priorities_key_unique UNIQUE (priority_key),
+    CONSTRAINT task_priorities_name_unique UNIQUE (priority_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.task_categories (
+    id BIGSERIAL PRIMARY KEY,
+    category_key VARCHAR(100) NOT NULL,
+    category_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT task_categories_key_unique UNIQUE (category_key),
+    CONSTRAINT task_categories_name_unique UNIQUE (category_name)
+);
+
+-- Configurable workflow module
+CREATE TABLE IF NOT EXISTS tracker.workflow_definitions (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_key VARCHAR(100) NOT NULL,
+    workflow_name VARCHAR(255) NOT NULL,
+    entity_type VARCHAR(100) NOT NULL,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT workflow_definitions_key_unique UNIQUE (workflow_key),
+    CONSTRAINT workflow_definitions_name_unique UNIQUE (workflow_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.workflow_states (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_id BIGINT NOT NULL,
+    state_key VARCHAR(100) NOT NULL,
+    state_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    is_initial BOOLEAN NOT NULL DEFAULT false,
+    is_terminal BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT workflow_states_workflow_fk FOREIGN KEY (workflow_id) REFERENCES tracker.workflow_definitions(id),
+    CONSTRAINT workflow_states_workflow_state_key_unique UNIQUE (workflow_id, state_key),
+    CONSTRAINT workflow_states_workflow_state_order_unique UNIQUE (workflow_id, display_order)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.workflow_transitions (
+    id BIGSERIAL PRIMARY KEY,
+    workflow_id BIGINT NOT NULL,
+    from_state_id BIGINT NOT NULL,
+    to_state_id BIGINT NOT NULL,
+    transition_key VARCHAR(100) NOT NULL,
+    transition_name VARCHAR(255) NOT NULL,
+    requires_comment BOOLEAN NOT NULL DEFAULT false,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT workflow_transitions_workflow_fk FOREIGN KEY (workflow_id) REFERENCES tracker.workflow_definitions(id),
+    CONSTRAINT workflow_transitions_from_state_fk FOREIGN KEY (from_state_id) REFERENCES tracker.workflow_states(id),
+    CONSTRAINT workflow_transitions_to_state_fk FOREIGN KEY (to_state_id) REFERENCES tracker.workflow_states(id),
+    CONSTRAINT workflow_transitions_workflow_key_unique UNIQUE (workflow_id, transition_key)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.workflow_transition_roles (
+    transition_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (transition_id, role_id),
+    CONSTRAINT workflow_transition_roles_transition_fk FOREIGN KEY (transition_id) REFERENCES tracker.workflow_transitions(id),
+    CONSTRAINT workflow_transition_roles_role_fk FOREIGN KEY (role_id) REFERENCES tracker.roles(id)
+);
+
+-- Configurable API permission rules (database-driven authorization)
+CREATE TABLE IF NOT EXISTS tracker.api_permission_rules (
+    id BIGSERIAL PRIMARY KEY,
+    rule_name VARCHAR(255) NOT NULL,
+    http_method VARCHAR(10) NOT NULL,
+    path_pattern VARCHAR(500) NOT NULL,
+    permission_id BIGINT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT api_permission_rules_name_unique UNIQUE (rule_name),
+    CONSTRAINT api_permission_rules_permission_fk FOREIGN KEY (permission_id) REFERENCES tracker.permissions(id)
+);
+
+-- Project-to-organization mapping
+CREATE TABLE IF NOT EXISTS tracker.project_departments (
+    project_id BIGINT NOT NULL,
+    department_id BIGINT NOT NULL,
+    PRIMARY KEY (project_id, department_id),
+    CONSTRAINT project_departments_project_fk FOREIGN KEY (project_id) REFERENCES tracker.projects(id),
+    CONSTRAINT project_departments_department_fk FOREIGN KEY (department_id) REFERENCES tracker.departments(id)
+);
+
+-- Backward-compatible extension columns
+ALTER TABLE tracker.users
+    ADD COLUMN IF NOT EXISTS department_id BIGINT,
+    ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+
+ALTER TABLE tracker.projects
+    ADD COLUMN IF NOT EXISTS workflow_id BIGINT;
+
+ALTER TABLE tracker.tasks
+    ADD COLUMN IF NOT EXISTS status_id BIGINT,
+    ADD COLUMN IF NOT EXISTS priority_id BIGINT,
+    ADD COLUMN IF NOT EXISTS category_id BIGINT,
+    ADD COLUMN IF NOT EXISTS workflow_state_id BIGINT;
+
+-- Safe foreign key additions for existing tables
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'users_department_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.users
+            ADD CONSTRAINT users_department_fk
+            FOREIGN KEY (department_id) REFERENCES tracker.departments(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'projects_workflow_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.projects
+            ADD CONSTRAINT projects_workflow_fk
+            FOREIGN KEY (workflow_id) REFERENCES tracker.workflow_definitions(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_status_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.tasks
+            ADD CONSTRAINT tasks_status_fk
+            FOREIGN KEY (status_id) REFERENCES tracker.task_statuses(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_priority_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.tasks
+            ADD CONSTRAINT tasks_priority_fk
+            FOREIGN KEY (priority_id) REFERENCES tracker.task_priorities(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_category_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.tasks
+            ADD CONSTRAINT tasks_category_fk
+            FOREIGN KEY (category_id) REFERENCES tracker.task_categories(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM pg_constraint
+        WHERE conname = 'tasks_workflow_state_fk'
+          AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.tasks
+            ADD CONSTRAINT tasks_workflow_state_fk
+            FOREIGN KEY (workflow_state_id) REFERENCES tracker.workflow_states(id);
+    END IF;
+END $$;
+
+-- Existing table indexes made idempotent
+CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tracker.tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner_id ON tracker.tasks(owner_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tracker.tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tracker.tasks(priority);
+CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON tracker.task_comments(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_attachments_task_id ON tracker.task_attachments(task_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON tracker.notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_task_id ON tracker.notifications(task_id);
+CREATE INDEX IF NOT EXISTS idx_activity_history_task_id ON tracker.activity_history(task_id);
+
+-- New module indexes
+CREATE INDEX IF NOT EXISTS idx_users_department_id ON tracker.users(department_id);
+CREATE INDEX IF NOT EXISTS idx_projects_workflow_id ON tracker.projects(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status_id ON tracker.tasks(status_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority_id ON tracker.tasks(priority_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_category_id ON tracker.tasks(category_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_workflow_state_id ON tracker.tasks(workflow_state_id);
+CREATE INDEX IF NOT EXISTS idx_user_roles_role_id ON tracker.user_roles(role_id);
+CREATE INDEX IF NOT EXISTS idx_role_permissions_permission_id ON tracker.role_permissions(permission_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_states_workflow_id ON tracker.workflow_states(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_transitions_workflow_id ON tracker.workflow_transitions(workflow_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_transitions_from_state_id ON tracker.workflow_transitions(from_state_id);
+CREATE INDEX IF NOT EXISTS idx_workflow_transitions_to_state_id ON tracker.workflow_transitions(to_state_id);
+CREATE INDEX IF NOT EXISTS idx_project_departments_department_id ON tracker.project_departments(department_id);
+CREATE INDEX IF NOT EXISTS idx_api_permission_rules_permission_id ON tracker.api_permission_rules(permission_id);
+CREATE INDEX IF NOT EXISTS idx_api_permission_rules_active_method ON tracker.api_permission_rules(active, http_method);
+
+-- Existing sample data for testing
 INSERT INTO tracker.users (employee_id, full_name, email, role, active, created_at, updated_at) VALUES
 ('EMP001', 'John Doe', 'john.doe@example.com', 'Project Manager', true, NOW(), NOW()),
 ('EMP002', 'Jane Smith', 'jane.smith@example.com', 'Developer', true, NOW(), NOW()),

@@ -14,3 +14,12 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## Task Details Mock Mode (Development)
+
+`TaskDetailsPage` supports a development-only mock mode so you can work without backend or database access.
+
+- Set `VITE_USE_TASK_DETAILS_MOCK=true` in `.env` to use local mock data.
+- Set `VITE_USE_TASK_DETAILS_MOCK=false` to reconnect the page to real backend APIs.
+
+The flag is only honored in development (`import.meta.env.DEV`).

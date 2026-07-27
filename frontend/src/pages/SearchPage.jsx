@@ -11,7 +11,6 @@ import {
   Button
 } from "@mui/material";
 
-import SidebarPanel from "../components/SidebarPanel";
 import { globalSearch } from "../services/searchService";
 
 export default function SearchPage() {
@@ -57,9 +56,7 @@ export default function SearchPage() {
   }, [query]);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+    <Box>
 
         {/* ✅ Search Input */}
         <TextField
@@ -113,20 +110,6 @@ export default function SearchPage() {
           onClose={() => setError("")}
         />
 
-      </Box>
-
-      {/* SIDEBAR */}
-      <SidebarPanel title="Search Options">
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Advanced Search
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Save Search
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-          Search History
-        </Button>
-      </SidebarPanel>
     </Box>
   );
 }

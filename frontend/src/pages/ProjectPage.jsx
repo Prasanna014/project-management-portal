@@ -1,19 +1,17 @@
-import React, { useEffect, useState } from "react";
-import { Box, Button, Snackbar, Alert, TextField } from "@mui/material";
+﻿import React, { useEffect, useState } from "react";
+import {
+  Box, Button, Alert, Typography, Chip,
+} from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import { useNavigate } from "react-router-dom";
 
-import SidebarPanel from "../components/SidebarPanel";
 import {
   getAllProjects,
   createProject,
-  updateProject,
-  deleteProject
+  deleteProject,
 } from "../services/projectService";
 import ProjectDialog from "./ProjectDialog";
 
 export default function ProjectPage() {
-  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -21,163 +19,138 @@ export default function ProjectPage() {
   const [openDialog, setOpenDialog] = useState(false);
 
   const loadProjects = async () => {
+    setLoading(true);
+    setError("");
     try {
-      console.log("🟡 Starting to load projects...");
-      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
-      setLoading(true);
-      setError("");
-      
       const projects = await getAllProjects();
-      console.log("🟢 Projects loaded successfully:", projects);
-      console.log("🔢 Total projects:", projects?.length || 0);
-      
       setRows(projects || []);
-      
     } catch (e) {
-      console.error("🔴 ERROR loading projects:", e);
-      console.error("Error message:", e.message);
-      console.error("Error details:", e);
-      setError(`Failed to load projects: ${e.message}`);
+      setError("Failed to load projects: " + e.message);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log("📌 Component mounted - loading projects");
-    loadProjects();
-  }, []);
-
-  const handleCreate = () => {
-    setOpenDialog(true);
-  };
+  useEffect(() => { loadProjects(); }, []);
 
   const handleDialogSave = async (formData) => {
     try {
-      console.log("Creating project from dialog:", formData);
       await createProject({
         projectCode: formData.code,
         projectName: formData.name,
         description: formData.description,
-        active: true
+        active: true,
       });
       setSuccess("Project created successfully!");
       setOpenDialog(false);
       loadProjects();
     } catch (e) {
-      console.error("Create failed:", e);
       setError("Create failed: " + e.message);
     }
   };
 
-  const handleUpdate = async (row) => {
-    try {
-      await updateProject(row.id, {
-        ...row,
-        projectName: row.projectName + " (Updated)"
-      });
-      setSuccess("Project updated");
-      loadProjects();
-    } catch (e) {
-      console.error(e);
-      setError("Update failed");
-    }
-  };
-
   const handleDelete = async (id) => {
+    if (!window.confirm("Delete this project?")) return;
     try {
       await deleteProject(id);
       setSuccess("Project deleted");
       loadProjects();
     } catch (e) {
-      console.error(e);
-      setError("Delete failed");
+      setError("Delete failed: " + e.message);
     }
   };
 
   const columns = [
-    { field: "id", headerName: "ID", width: 80 },
-    { field: "projectCode", headerName: "Project Code", width: 150 },
-    { field: "projectName", headerName: "Project Name", width: 200 },
-    { field: "description", headerName: "Description", width: 250 },
-    { field: "active", headerName: "Status", width: 120 },
-    { field: "createdAt", headerName: "Created Date", width: 180 },
+    { field: "id",          headerName: "ID",           width: 70 },
+    { field: "projectCode", headerName: "Code",          width: 120 },
+    { field: "projectName", headerName: "Project Name",  flex: 1, minWidth: 180 },
+    { field: "description", headerName: "Description",   flex: 1, minWidth: 200 },
+    {
+      field: "active",
+      headerName: "Status",
+      width: 110,
+      renderCell: (params) => (
+        <Chip
+          label={params.value ? "Active" : "Inactive"}
+          size="small"
+          sx={{
+            bgcolor: params.value ? "#DCFCE7" : "#FEE2E2",
+            color: params.value ? "#059669" : "#DC2626",
+            fontWeight: 600, fontSize: "0.72rem",
+          }}
+        />
+      ),
+    },
+    {
+      field: "createdAt",
+      headerName: "Created",
+      width: 140,
+      valueFormatter: (value) => value ? new Date(value).toLocaleDateString() : "—",
+    },
     {
       field: "actions",
       headerName: "Actions",
-      width: 200,
+      width: 100,
+      sortable: false,
       renderCell: (params) => (
-        <>
-          <Button onClick={() => handleUpdate(params.row)}>Edit</Button>
-          <Button color="error" onClick={() => handleDelete(params.row.id)}>
-            Delete
-          </Button>
-        </>
-      )
-    }
+        <Button
+          size="small"
+          color="error"
+          variant="outlined"
+          onClick={() => handleDelete(params.row.id)}
+          sx={{ borderRadius: "6px", textTransform: "none", fontSize: "0.72rem" }}
+        >
+          Delete
+        </Button>
+      ),
+    },
   ];
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
-        <h1>📊 Projects Page</h1>
-        <p>💻 API Base URL: {import.meta.env.VITE_API_BASE_URL}</p>
-        <p>📊 Total Rows: {rows.length}</p>
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-        
-        <Button variant="contained" onClick={handleCreate} sx={{ mb: 2 }}>
-          Create Project
+    <Box>
+      {/* Header */}
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2.5 }}>
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "#0F172A" }}>Projects</Typography>
+          <Typography variant="body2" sx={{ color: "#64748B", mt: 0.25 }}>
+            {rows.length} project{rows.length !== 1 ? "s" : ""} total
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          onClick={() => setOpenDialog(true)}
+          sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600 }}
+        >
+          + New Project
         </Button>
-
-        {loading && <p>⏳ Loading...</p>}
-
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          loading={loading}
-          autoHeight
-          getRowId={(row) => row.id}
-        />
-
-        <Snackbar
-          open={!!error}
-          message={error}
-          autoHideDuration={3000}
-          onClose={() => setError("")}
-        />
-
-        <Snackbar
-          open={!!success}
-          message={success}
-          autoHideDuration={3000}
-          onClose={() => setSuccess("")}
-        />
-
-        <ProjectDialog
-          open={openDialog}
-          onClose={() => setOpenDialog(false)}
-          onSave={handleDialogSave}
-        />
       </Box>
 
-      {/* SIDEBAR */}
-      <SidebarPanel title="Project Actions">
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Export Projects
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Import Projects
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-          Settings
-        </Button>
-      </SidebarPanel>
+      {error   && <Alert severity="error"   onClose={() => setError("")}   sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>{success}</Alert>}
+
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        loading={loading}
+        autoHeight
+        getRowId={(row) => row.id}
+        pageSizeOptions={[10, 25, 50]}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        sx={{
+          borderRadius: "8px",
+          border: "1px solid #e5e7eb",
+          bgcolor: "#fff",
+          "& .MuiDataGrid-columnHeaders": { bgcolor: "#f9fafb", borderBottom: "1px solid #e5e7eb" },
+          "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": { outline: "none" },
+        }}
+      />
+
+      <ProjectDialog
+        open={openDialog}
+        onClose={() => setOpenDialog(false)}
+        onSave={handleDialogSave}
+      />
     </Box>
   );
 }
+

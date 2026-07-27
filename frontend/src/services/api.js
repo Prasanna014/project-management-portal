@@ -9,23 +9,10 @@ const API = axios.create({
   }
 });
 
-// ✅ REQUEST INTERCEPTOR
-API.interceptors.request.use(
-  (config) => {
-    console.log("API REQUEST:", config.url);
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
 // ✅ RESPONSE INTERCEPTOR
 API.interceptors.response.use(
   (response) => response,
-  (error) => {
-    console.error("API ERROR:", error?.response?.data || error.message);
-
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 export default API;

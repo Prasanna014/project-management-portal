@@ -10,7 +10,6 @@ import {
   TextField
 } from "@mui/material";
 
-import SidebarPanel from "../components/SidebarPanel";
 import {
   getNotifications,
   markAsRead,
@@ -65,9 +64,7 @@ export default function NotificationsPage() {
   };
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+    <Box>
         <Box display="flex" justifyContent="space-between" gap={2} mb={2}>
           <Typography variant="h5">Notifications</Typography>
           <TextField
@@ -116,17 +113,6 @@ export default function NotificationsPage() {
           autoHideDuration={3000}
           onClose={() => setSuccess("")}
         />
-      </Box>
-
-      {/* SIDEBAR */}
-      <SidebarPanel title="Notification Options">
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Notification Settings
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-          Clear All
-        </Button>
-      </SidebarPanel>
     </Box>
   );
 }

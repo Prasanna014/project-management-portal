@@ -31,6 +31,18 @@ public class TaskDto {
 
     private String status;
 
+    private Long priorityId;
+
+    private Long statusId;
+
+    private Long categoryId;
+
+    private Long workflowStateId;
+
+    private String categoryName;
+
+    private String workflowStateName;
+
     private Long ownerId;
 
     private LocalDate targetDate;

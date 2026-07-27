@@ -49,7 +49,6 @@ export default function CreateTaskPage() {
 
   // Load projects and users on mount
   useEffect(() => {
-    console.log("🟡 CreateTaskPage mounted, loading data...");
     loadData();
   }, []);
 
@@ -63,9 +62,6 @@ export default function CreateTaskPage() {
         getUsers()
       ]);
 
-      console.log("✅ Projects loaded:", projectsRes?.length);
-      console.log("✅ Users loaded:", usersRes?.length);
-
       setProjects(projectsRes || []);
       setUsers(usersRes || []);
 
@@ -76,7 +72,6 @@ export default function CreateTaskPage() {
         setLoadingError("❌ No users found. Please add users first.");
       }
     } catch (err) {
-      console.error("❌ Error loading data:", err.message);
       setLoadingError(`Error: ${err.message}`);
     } finally {
       setLoadingData(false);
@@ -141,8 +136,6 @@ export default function CreateTaskPage() {
   };
 
   const handleSubmit = async () => {
-    console.log("🟡 Attempting to create task...");
-    
     // Validation
     if (!form.issueActionItem.trim()) {
       setSubmitError("Task name is required");
@@ -192,9 +185,7 @@ export default function CreateTaskPage() {
         createdBy: currentUserId
       };
 
-      console.log("🟡 Creating task:", newTask);
       const result = await createTask(newTask);
-      console.log("✅ Task created:", result);
 
       setSubmitSuccess(true);
       setTimeout(() => {
@@ -202,7 +193,6 @@ export default function CreateTaskPage() {
       }, 1500);
 
     } catch (err) {
-      console.error("❌ Error creating task:", err);
       setSubmitError(`Error: ${err.message}`);
     } finally {
       setSubmitting(false);
@@ -211,15 +201,14 @@ export default function CreateTaskPage() {
 
   if (loadingData) {
     return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh" }}>
+      <Box sx={{ display: "flex", justifyContent: "center", pt: 8 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ backgroundColor: "#f5f5f5", minHeight: "100vh", p: 3 }}>
-      <Box sx={{ maxWidth: "800px", mx: "auto" }}>
+    <Box>
         {/* HEADER */}
         <Box sx={{ mb: 3 }}>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
@@ -511,7 +500,6 @@ export default function CreateTaskPage() {
             {submitting ? "Creating..." : "Create Task"}
           </Button>
         </Box>
-      </Box>
     </Box>
   );
 }

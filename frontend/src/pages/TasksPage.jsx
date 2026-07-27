@@ -1,302 +1,336 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-
 import {
   Box,
   Button,
-  Snackbar,
   TextField,
   MenuItem,
   Alert,
-  Typography
+  Typography,
+  Chip,
+  Avatar,
 } from "@mui/material";
-
 import { DataGrid } from "@mui/x-data-grid";
-import SidebarPanel from "../components/SidebarPanel";
 import { handleApiError } from "../utils/errorHandler";
+import StatusChip from "../components/StatusChip";
+import PriorityChip from "../components/PriorityChip";
+import { getAllTasks, deleteTask } from "../services/taskService";
+import { getUsers } from "../services/userServices";
+import { useProject } from "../contexts/ProjectContext";
 
-
-import {
-  getAllTasks,
-  createTask,
-  updateTask,
-  deleteTask
-} from "../services/taskService";
+const DEBOUNCE_MS = 400;
 
 
 export default function TasksPage() {
   const navigate = useNavigate();
+  const { selectedProjectId, setSelectedProjectId, projects } = useProject();
 
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [rows,     setRows]     = useState([]);
+  const [loading,  setLoading]  = useState(false);
+  const [error,    setError]    = useState("");
+  const [success,  setSuccess]  = useState("");
+  const [search,   setSearch]   = useState("");
+  const [usersMap, setUsersMap] = useState({});
+  const [status,   setStatus]   = useState("");
   const [priority, setPriority] = useState("");
 
-  const loadTasks = async () => {
+  const debounceRef = useRef(null);
+
+  // Load users for owner column
+  useEffect(() => {
+    getUsers()
+      .then(list => {
+        const map = {};
+        (list || []).forEach(u => { map[u.id] = u; });
+        setUsersMap(map);
+      })
+      .catch(() => {});
+  }, []);
+
+  // Keep latest values accessible in callbacks without adding them as deps
+  const filtersRef = useRef({ search, status, priority });
+  filtersRef.current = { search, status, priority };
+
+  const applyFilters = useCallback((tasks, s, st, pr, pid) => {
+    let data = tasks || [];
+    if (pid) data = data.filter(t => String(t.projectId) === String(pid));
+    if (s)   data = data.filter(t => t.issueActionItem?.toLowerCase().includes(s.toLowerCase()));
+    if (st)  data = data.filter(t => t.status   === st);
+    if (pr)  data = data.filter(t => t.priority === pr);
+    return data;
+  }, []);
+
+  const loadTasks = useCallback(async (s, st, pr, pid) => {
+    setLoading(true);
+    setError("");
     try {
-      console.log("🟡 Loading tasks...");
-      console.log("📍 API URL:", import.meta.env.VITE_API_BASE_URL);
-      setLoading(true);
-      
       const tasks = await getAllTasks();
-      console.log("🟢 Tasks loaded:", tasks);
-
-      let data = tasks || [];
-
-      if (search) {
-        data = data.filter(t =>
-          t.issueActionItem?.toLowerCase().includes(search.toLowerCase())
-        );
-      }
-
-      if (status) {
-        data = data.filter(t => t.status === status);
-      }
-
-      if (priority) {
-        data = data.filter(t => t.priority === priority);
-      }
-
-      console.log("🔢 Filtered tasks count:", data.length);
-      setRows(data);
-
+      setRows(applyFilters(tasks, s, st, pr, pid));
     } catch (err) {
-      console.error("🔴 ERROR loading tasks:", err);
       handleApiError(err, setError);
     } finally {
       setLoading(false);
     }
-  };
+  }, [applyFilters]);
 
+  // Debounce only when search changes; instant for dropdown filters
   useEffect(() => {
-    loadTasks();
-  }, [search, status, priority]);
+    const timer = setTimeout(
+      () => loadTasks(search, status, priority, selectedProjectId),
+      search ? DEBOUNCE_MS : 0
+    );
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, status, priority, selectedProjectId]);
 
-  const handleCreate = () => {
-    console.log("🟡 Navigating to create task page...");
-    navigate("/create-task");  // ✅ USE REACT ROUTER - No page reload!
-  };
-
-  const handleEdit = (row) => {
-    console.log("🟡 Navigating to edit task:", row.id);
-    navigate(`/task/${row.id}`, { state: { isEdit: true, task: row } });
-  };
-
-  const handleCreateOld = async () => {
-    try {
-      const fallbackProjectId = rows.find((r) => r.projectId)?.projectId;
-      if (!fallbackProjectId) {
-        setError("Create a project first before creating tasks");
-        return;
-      }
-      await createTask({
-        taskNo: "TASK-" + Date.now(),
-        projectId: fallbackProjectId,
-        issueActionItem: "New Task",
-        description: "Created from UI",
-        status: "Open",
-        priority: "Medium"
-      });
-      setSuccess("Task created");
-      loadTasks();
-    } catch (err) {
-      handleApiError(err, setError);
-    }
-  };
-
-  const handleUpdate = async (row) => {
-    try {
-      await updateTask(row.id, {
-        ...row,
-        issueActionItem: row.issueActionItem + " (Updated)"
-      });
-      setSuccess("Task updated");
-      loadTasks();
-    } catch (err) {
-      handleApiError(err, setError);
-    }
-  };
-
-  const handleDelete = async (id) => {
+  const handleDelete = useCallback(async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Are you sure you want to delete this task?")) return;
+    setLoading(true);
     try {
       await deleteTask(id);
-      setSuccess("Task deleted");
-      loadTasks();
+      setSuccess("Task deleted successfully.");
+      const { search: s, status: st, priority: pr } = filtersRef.current;
+      await loadTasks(s, st, pr, selectedProjectId);
     } catch (err) {
       handleApiError(err, setError);
+      setLoading(false);
     }
-  };
+  }, [loadTasks]);
 
-  const columns = [
-    { field: "taskNo", headerName: "Task Number", width: 150 },
-    { field: "issueActionItem", headerName: "Issue", width: 200 },
-    { field: "description", headerName: "Description", width: 250 },
-    { field: "priority", headerName: "Priority", width: 120 },
-    { field: "ownerId", headerName: "Owner", width: 120 },
-    { field: "status", headerName: "Status", width: 120 },
-    { field: "targetDate", headerName: "Target Date", width: 150 },
-    { field: "createdAt", headerName: "Created Date", width: 150 },
+  const handleEdit = useCallback((e, row) => {
+    e.stopPropagation();
+    navigate(`/task/${row.id}`);
+  }, [navigate]);
+
+  const columns = useMemo(() => [
+    { field: "taskNo",          headerName: "Task No",            width: 120 },
+    { field: "issueActionItem", headerName: "Issue / Action Item", flex: 1, minWidth: 200 },
+    {
+      field: "status",
+      headerName: "Status",
+      width: 140,
+      renderCell: (params) => <StatusChip status={params.value} />,
+    },
+    {
+      field: "priority",
+      headerName: "Priority",
+      width: 120,
+      renderCell: (params) => <PriorityChip priority={params.value} />,
+    },
+    { field: "ownerId", headerName: "Owner", width: 160,
+      renderCell: (params) => {
+        const user = usersMap[params.value];
+        if (!user) return <Typography variant="body2" color="text.secondary">—</Typography>;
+        const initials = (user.fullName || "?")
+          .split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2);
+        const palette = ["#4F46E5","#0EA5E9","#8B5CF6","#059669","#D97706","#DC2626"];
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, height: "100%" }}>
+            <Avatar sx={{
+              width: 26, height: 26, fontSize: "0.65rem", fontWeight: 700, flexShrink: 0,
+              bgcolor: palette[(params.value || 0) % palette.length],
+            }}>
+              {initials}
+            </Avatar>
+            <Typography variant="body2" sx={{ fontSize: "0.8rem", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {user.fullName}
+            </Typography>
+          </Box>
+        );
+      }
+    },
+    {
+      field: "targetDate",
+      headerName: "Due Date",
+      width: 120,
+      valueFormatter: (value) => value ? new Date(value).toLocaleDateString() : "—",
+    },
+    {
+      field: "createdAt",
+      headerName: "Created",
+      width: 120,
+      valueFormatter: (value) => value ? new Date(value).toLocaleDateString() : "—",
+    },
     {
       field: "actions",
       headerName: "Actions",
-      width: 220,
+      width: 165,
+      sortable: false,
+      filterable: false,
+      disableColumnMenu: true,
       renderCell: (params) => (
-        <>
-          <Button onClick={() => handleEdit(params.row)}>Edit</Button>
-          <Button color="error" onClick={() => handleDelete(params.row.id)}>
+        <Box sx={{ display: "flex", gap: 0.75, alignItems: "center", height: "100%" }}>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={(e) => handleEdit(e, params.row)}
+            sx={{
+              fontSize: "0.72rem",
+              px: 1.5,
+              py: 0.25,
+              minWidth: 0,
+              bgcolor: "#2563eb",
+              "&:hover": { bgcolor: "#1d4ed8" },
+              textTransform: "none",
+              borderRadius: "6px",
+            }}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            color="error"
+            onClick={(e) => handleDelete(e, params.row.id)}
+            sx={{
+              fontSize: "0.72rem",
+              px: 1.5,
+              py: 0.25,
+              minWidth: 0,
+              textTransform: "none",
+              borderRadius: "6px",
+            }}
+          >
             Delete
           </Button>
-        </>
-      )
-    }
-  ];
+        </Box>
+      ),
+    },
+  ], [handleEdit, handleDelete]);
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
-        <Typography variant="h4" sx={{ mb: 2, fontWeight: "bold" }}>📋 All Tasks</Typography>
-        <Typography variant="body2" sx={{ mb: 2, color: "text.secondary" }}>
-          🌐 API: {import.meta.env.VITE_API_BASE_URL} | 📊 Total: {rows.length} tasks
-        </Typography>
+    <Box>
+      {/* Page header */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 2.5,
+          flexWrap: "wrap",
+          gap: 1,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827" }}>
+            Tasks
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.25 }}>
+            {selectedProjectId ? (
+              <Chip
+                label={projects.find(p => String(p.id) === selectedProjectId)?.name ||
+                       projects.find(p => String(p.id) === selectedProjectId)?.projectName ||
+                       `Project ${selectedProjectId}`}
+                size="small"
+                sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontWeight: 600, fontSize: "0.72rem" }}
+              />
+            ) : null}
+            <Typography variant="body2" sx={{ color: "#6b7280" }}>
+              {rows.length} task{rows.length !== 1 ? "s" : ""} found
+            </Typography>
+          </Box>
+        </Box>
+        <Button
+          variant="contained"
+          color="success"
+          onClick={() => navigate("/create-task")}
+          sx={{ fontWeight: 600, borderRadius: "8px", textTransform: "none" }}
+        >
+          + Create Task
+        </Button>
+      </Box>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
+      {/* Alerts */}
+      {error   && <Alert severity="error"   onClose={() => setError("")}   sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" onClose={() => setSuccess("")} sx={{ mb: 2 }}>{success}</Alert>}
 
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }}>
-            {success}
-          </Alert>
-        )}
-
-        <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-
-          <TextField
-            label="🔍 Search Tasks"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by issue"
-            size="small"
-            sx={{ minWidth: 200 }}
-          />
-
-          <TextField
-            select
-            label="Status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            sx={{ width: 150 }}
-            size="small"
-          >
-            <MenuItem value="">All Status</MenuItem>
-            <MenuItem value="Open">Open</MenuItem>
-            <MenuItem value="In Progress">In Progress</MenuItem>
-            <MenuItem value="Completed">Completed</MenuItem>
-        </TextField>
-
+      {/* Filter toolbar */}
+      <Box sx={{ display: "flex", gap: 1.5, mb: 2.5, alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          label="Search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search by issue / action item…"
+          size="small"
+          sx={{ minWidth: 240 }}
+        />
+        {/* Project filter — drives the same selectedProjectId used for task loading */}
         <TextField
           select
-          label="Priority"
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          sx={{ width: 150 }}
+          label="Project"
+          value={selectedProjectId || ""}
+          onChange={(e) => setSelectedProjectId(e.target.value || "")}
           size="small"
+          sx={{ minWidth: 200 }}
         >
-          <MenuItem value="">All Priority</MenuItem>
-          <MenuItem value="Critical">Critical</MenuItem>
-          <MenuItem value="High">High</MenuItem>
-          <MenuItem value="Medium">Medium</MenuItem>
-          <MenuItem value="Low">Low</MenuItem>
+          <MenuItem value="">All Projects</MenuItem>
+          {projects.map((p) => (
+            <MenuItem key={p.id} value={String(p.id)}>
+              {p.projectName || p.name}
+            </MenuItem>
+          ))}
         </TextField>
-
-        <Button 
-          variant="contained" 
-          color="success"
-          onClick={handleCreate}
-          sx={{ ml: "auto" }}
-        >
-          ➕ Create Task
-        </Button>
-
-      </Box>
-
-      {loading && <Typography>⏳ Loading tasks...</Typography>}
-
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        loading={loading}
-        autoHeight
-        getRowId={(row) => row.id || row.taskNo}
-        pageSizeOptions={[5, 10, 25]}
-      />
-
-      <Snackbar
-        open={!!error}
-        autoHideDuration={4000}
-        onClose={() => setError("")}
-      >
-        <Alert onClose={() => setError("")} severity="error" sx={{ width: "100%" }}>
-          {error}
-        </Alert>
-      </Snackbar>
-
-      <Snackbar
-        open={!!success}
-        autoHideDuration={3000}
-        onClose={() => setSuccess("")}
-      >
-        <Alert onClose={() => setSuccess("")} severity="success" sx={{ width: "100%" }}>
-          {success}
-        </Alert>
-      </Snackbar>
-
-      </Box>
-
-      {/* SIDEBAR */}
-      <SidebarPanel title="Task Filters">
-        <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 2, color: "#fff" }}>
-          Filter Options
-        </Typography>
         <TextField
           select
           label="Status"
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          fullWidth
           size="small"
-          sx={{ mb: 2, "& .MuiOutlinedInput-root": { backgroundColor: "rgba(255,255,255,0.1)" } }}
+          sx={{ width: 155 }}
         >
-          <MenuItem value="">All Status</MenuItem>
+          <MenuItem value="">All Statuses</MenuItem>
           <MenuItem value="Open">Open</MenuItem>
           <MenuItem value="In Progress">In Progress</MenuItem>
-          <MenuItem value="Completed">Completed</MenuItem>
+          <MenuItem value="Closed">Closed</MenuItem>
+          <MenuItem value="On Hold">On Hold</MenuItem>
         </TextField>
-
         <TextField
           select
           label="Priority"
           value={priority}
           onChange={(e) => setPriority(e.target.value)}
-          fullWidth
           size="small"
-          sx={{ "& .MuiOutlinedInput-root": { backgroundColor: "rgba(255,255,255,0.1)" } }}
+          sx={{ width: 155 }}
         >
-          <MenuItem value="">All Priority</MenuItem>
+          <MenuItem value="">All Priorities</MenuItem>
           <MenuItem value="Critical">Critical</MenuItem>
           <MenuItem value="High">High</MenuItem>
           <MenuItem value="Medium">Medium</MenuItem>
           <MenuItem value="Low">Low</MenuItem>
         </TextField>
-      </SidebarPanel>
+      </Box>
+
+      {/* DataGrid */}
+      <DataGrid
+        rows={rows}
+        columns={columns}
+        loading={loading}
+        autoHeight
+        getRowId={(row) => row.id ?? row.taskNo}
+        pageSizeOptions={[10, 25, 50]}
+        initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
+        onRowClick={(params) => navigate(`/task/${params.row.id}`)}
+        sx={{
+          borderRadius: "8px",
+          border: "1px solid #e5e7eb",
+          bgcolor: "#fff",
+          "& .MuiDataGrid-columnHeaders": {
+            bgcolor: "#f9fafb",
+            borderBottom: "1px solid #e5e7eb",
+          },
+          "& .MuiDataGrid-row": {
+            cursor: "pointer",
+            "&:hover": { bgcolor: "#eff6ff" },
+          },
+          "& .MuiDataGrid-cell:focus, & .MuiDataGrid-cell:focus-within": {
+            outline: "none",
+          },
+          "& .MuiDataGrid-columnHeader:focus, & .MuiDataGrid-columnHeader:focus-within": {
+            outline: "none",
+          },
+        }}
+      />
     </Box>
   );
 }

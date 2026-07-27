@@ -11,7 +11,6 @@ import {
   Button
 } from "@mui/material";
 
-import SidebarPanel from "../components/SidebarPanel";
 import {
   getTaskSummaryReport,
   getPriorityReport
@@ -94,9 +93,7 @@ export default function ReportsPage() {
   }
 
   return (
-    <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-      {/* MAIN CONTENT */}
-      <Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+    <Box>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
@@ -178,20 +175,6 @@ export default function ReportsPage() {
           onClose={() => setError("")}
         />
 
-      </Box>
-
-      {/* SIDEBAR */}
-      <SidebarPanel title="Report Options">
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Export Report
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-          Print Report
-        </Button>
-        <Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-          Schedule Report
-        </Button>
-      </SidebarPanel>
     </Box>
   );
 }

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Box, Card, CardContent, Typography, Grid, CircularProgress, Snackbar, Alert, Button } from "@mui/material";
-import SidebarPanel from "../components/SidebarPanel";
 import { getAllTasks } from "../services/taskService";
 
 export default function CalenderPage() {
@@ -80,9 +79,7 @@ export default function CalenderPage() {
 	}
 
 	return (
-		<Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "#f5f5f5" }}>
-			{/* MAIN CONTENT */}
-			<Box sx={{ flex: 1, p: 3, overflow: "auto" }}>
+		<Box>
 				<Typography variant="h5" sx={{ mb: 2 }}>📅 Task Calendar</Typography>
 				{error && (
 					<Alert severity="error" sx={{ mb: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -126,20 +123,6 @@ export default function CalenderPage() {
 				autoHideDuration={3000}
 				onClose={() => setError("")}
 			/>
-			</Box>
-
-			{/* SIDEBAR */}
-			<SidebarPanel title="Calendar Options">
-				<Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-					Export Calendar
-				</Button>
-				<Button variant="outlined" fullWidth sx={{ mb: 1.5, color: "#fff", borderColor: "#fff" }}>
-					View by Week
-				</Button>
-				<Button variant="outlined" fullWidth sx={{ color: "#fff", borderColor: "#fff" }}>
-					View by Month
-				</Button>
-			</SidebarPanel>
 		</Box>
 	);
 }

@@ -1,46 +1,24 @@
 import API from "./api";
 
-/* ================= SUMMARY ================= */
-export const getDashboardSummary = async () => {
-  try {
-    const response = await API.get("/dashboard/summary");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching dashboard summary:", error);
-    throw error;
-  }
+const pid = (projectId) => projectId ? { params: { projectId } } : {};
+
+export const getDashboardSummary = async (projectId) => {
+  const response = await API.get("/dashboard/summary", pid(projectId));
+  return response.data;
 };
 
-/* ================= STATUS ================= */
-export const getStatusSummary = async () => {
-  try {
-    const response = await API.get("/dashboard/status");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching status summary:", error);
-    throw error;
-  }
+export const getStatusSummary = async (projectId) => {
+  const response = await API.get("/dashboard/status", pid(projectId));
+  return response.data;
 };
 
-/* ================= PRIORITY ================= */
-export const getPrioritySummary = async () => {
-  try {
-    const response = await API.get("/dashboard/priority");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching priority summary:", error);
-    throw error;
-  }
+export const getPrioritySummary = async (projectId) => {
+  const response = await API.get("/dashboard/priority", pid(projectId));
+  return response.data;
 };
 
-/* ================= WORKLOAD ================= */
-export const getOwnerWorkload = async () => {
-  try {
-    const response = await API.get("/dashboard/workload");
-    return response.data;
-  } catch (error) {
-    console.error("Error fetching owner workload:", error);
-    throw error;
-  }
+export const getOwnerWorkload = async (projectId) => {
+  const response = await API.get("/dashboard/workload", pid(projectId));
+  return response.data;
 };
 

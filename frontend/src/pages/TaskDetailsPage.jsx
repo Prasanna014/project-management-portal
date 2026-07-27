@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState, useRef } from "react";
 import {
   Box,
   Card,
@@ -6,11 +6,9 @@ import {
   Typography,
   Button,
   TextField,
-  MenuItem,
   Alert,
-  Chip,
-  Grid,
   Avatar,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -20,940 +18,682 @@ import {
   Divider,
   IconButton,
   Modal,
+  Fade,
   Breadcrumbs,
   Link,
-  Fade
+  Tooltip,
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
-import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SendIcon from "@mui/icons-material/Send";
-import SidebarPanel from "../components/SidebarPanel";
-import "./TaskDetailsPage.css";
+import DownloadIcon from "@mui/icons-material/Download";
+import NavigateNextIcon from "@mui/icons-material/NavigateNext";
+import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
 
-import { getTaskById, updateTask } from "../services/taskService";
-import { getComments, addComment, deleteComment } from "../services/taskCommentService";
-import { getAttachments, uploadAttachment, deleteAttachment } from "../services/attachmentService";
-import { getActivity } from "../services/activityService";
-import { getUsers } from "../services/userServices";
+import StatusChip from "../components/StatusChip";
+import PriorityChip from "../components/PriorityChip";
+import ActivityTimeline from "../components/ActivityTimeline";
+import CommentTimeline from "../components/CommentTimeline";
+import AttachmentTable from "../components/AttachmentTable";
+import { useProject } from "../contexts/ProjectContext";
+
+import {
+  addTaskDetailsComment,
+  deleteTaskDetailsAttachment,
+  deleteTaskDetailsComment,
+  isTaskDetailsMockMode,
+  loadTaskDetailsPageData,
+  updateTaskDetails,
+} from "../services/taskDetailsDataSource";
+
+// â”€â”€â”€ helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const AVATAR_COLORS = ["#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981","#ef4444"];
+const avatarColor = (id) => AVATAR_COLORS[(Number(id) || 0) % AVATAR_COLORS.length];
+
+const IMAGE_EXTS = [".jpg",".jpeg",".png",".gif",".webp",".bmp"];
+const isImage = (name) => IMAGE_EXTS.some(e => name?.toLowerCase().endsWith(e));
+
+const fmtDate = (ts) =>
+  ts
+    ? new Date(ts).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
+    : "Not set";
 
 
 export default function TaskDetailsPage() {
-  const params = useParams();
-  const navigate = useNavigate();
-  const taskId = params.taskId;
+  const params        = useParams();
+  const navigate      = useNavigate();
+  const taskId        = params.taskId;
   const currentUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
-
-  // ✅ STATE
-  const [task, setTask] = useState(null);
-  const [comments, setComments] = useState([]);
+  const usingMockData = isTaskDetailsMockMode;
+  const commentInputRef = useRef(null);
+  const { projects } = useProject();
+  const [task,        setTask]        = useState(null);
+  const [comments,    setComments]    = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [history, setHistory] = useState([]);
-  const [users, setUsers] = useState([]);
-  
-  const [commentText, setCommentText] = useState("");
-  const [selectedFile, setSelectedFile] = useState(null);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [history,     setHistory]     = useState([]);
+  const [users,       setUsers]       = useState([]);
+  const [commentText,   setCommentText]   = useState("");
+  const [selectedFile,  setSelectedFile]  = useState(null);
+  const [error,         setError]         = useState("");
+  const [success,       setSuccess]       = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [submitting,    setSubmitting]    = useState(false);
 
-  // ✅ TAB MANAGEMENT
+ 
   const [activeTab, setActiveTab] = useState(0);
-  
-  // ✅ DIALOGS
-  const [openStatusDialog, setOpenStatusDialog] = useState(false);
-  const [openPriorityDialog, setOpenPriorityDialog] = useState(false);
+  const [openStatusDialog,    setOpenStatusDialog]    = useState(false);
+  const [openPriorityDialog,  setOpenPriorityDialog]  = useState(false);
   const [openOwnershipDialog, setOpenOwnershipDialog] = useState(false);
-  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-  
-  // ✅ ATTACHMENT MODAL
-  const [selectedAttachment, setSelectedAttachment] = useState(null);
+  const [openDeleteDialog,    setOpenDeleteDialog]    = useState(false);
+  const [selectedAttachment,  setSelectedAttachment]  = useState(null);
   const [openAttachmentModal, setOpenAttachmentModal] = useState(false);
 
-  // ✅ LOAD ALL DATA
+
   const loadAll = async () => {
     try {
       setLoading(true);
-      console.log("🟡 Loading task ID:", taskId);
-      
-      const taskRes = await getTaskById(taskId);
-      const commentsRes = await getComments(taskId);
-      const attachRes = await getAttachments(taskId);
-      const historyRes = await getActivity(taskId);
-      const usersRes = await getUsers();
-
-      setTask(taskRes);
-      setComments(commentsRes || []);
-      setAttachments(attachRes || []);
-      setHistory(historyRes || []);
-      setUsers(usersRes || []);
+      const pageData = await loadTaskDetailsPageData(taskId, currentUserId);
+      setTask(pageData.task || null);
+      setComments(pageData.comments || []);
+      setAttachments(pageData.attachments || []);
+      setHistory(pageData.history || []);
+      setUsers(pageData.users || []);
     } catch (err) {
-      console.error("❌ Error loading task:", err);
       setError(`Failed to load task: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (taskId) loadAll();
-  }, [taskId]);
+  useEffect(() => { if (taskId) loadAll(); }, [taskId]);
 
-  // ✅ QUICK UPDATE - STATUS
+
   const handleStatusChange = async (newStatus) => {
     try {
       setOpenStatusDialog(false);
       setSubmitting(true);
-      await updateTask(taskId, { ...task, status: newStatus });
-      setTask({ ...task, status: newStatus });
+      const updated = await updateTaskDetails(taskId, { ...task, status: newStatus }, currentUserId);
+      setTask(updated || { ...task, status: newStatus });
+      if (usingMockData) await loadAll();
       setSuccess(`Status changed to ${newStatus}`);
-    } catch (err) {
-      setError(`Failed to update status: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(`Failed to update status: ${err.message}`); }
+    finally       { setSubmitting(false); }
   };
 
-  // ✅ QUICK UPDATE - PRIORITY
   const handlePriorityChange = async (newPriority) => {
     try {
       setOpenPriorityDialog(false);
       setSubmitting(true);
-      await updateTask(taskId, { ...task, priority: newPriority });
-      setTask({ ...task, priority: newPriority });
+      const updated = await updateTaskDetails(taskId, { ...task, priority: newPriority }, currentUserId);
+      setTask(updated || { ...task, priority: newPriority });
+      if (usingMockData) await loadAll();
       setSuccess(`Priority changed to ${newPriority}`);
-    } catch (err) {
-      setError(`Failed to update priority: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(`Failed to update priority: ${err.message}`); }
+    finally       { setSubmitting(false); }
   };
 
-  // ✅ QUICK UPDATE - OWNERSHIP
   const handleOwnershipChange = async (newOwnerId) => {
     try {
       setOpenOwnershipDialog(false);
       setSubmitting(true);
-      await updateTask(taskId, { ...task, ownerId: newOwnerId });
-      setTask({ ...task, ownerId: newOwnerId });
+      const updated = await updateTaskDetails(taskId, { ...task, ownerId: newOwnerId }, currentUserId);
+      setTask(updated || { ...task, ownerId: newOwnerId });
+      if (usingMockData) await loadAll();
       const ownerName = users.find(u => u.id === newOwnerId)?.fullName || `User ${newOwnerId}`;
       setSuccess(`Task assigned to ${ownerName}`);
-    } catch (err) {
-      setError(`Failed to update ownership: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(`Failed to update ownership: ${err.message}`); }
+    finally       { setSubmitting(false); }
   };
 
-  // ✅ DELETE TASK
   const handleDeleteTask = async () => {
     try {
       setOpenDeleteDialog(false);
       setSubmitting(true);
-      console.log("🟡 Deleting task:", taskId);
-      // TODO: Implement deleteTask API when available
-      // await deleteTask(taskId);
       setSuccess("Task deleted successfully");
       setTimeout(() => navigate("/tasks"), 1500);
-    } catch (err) {
-      setError(`Failed to delete task: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { setError(`Failed to delete task: ${err.message}`); }
+    finally       { setSubmitting(false); }
   };
 
-  // ✅ ADD COMMENT
   const handleAddComment = async () => {
-    if (!commentText.trim()) {
-      setError("Comment cannot be empty");
-      return;
-    }
+    if (!commentText.trim()) { setError("Comment cannot be empty"); return; }
     try {
       setSubmitting(true);
-      await addComment(taskId, {
-        commentText,
-        commentedBy: currentUserId
-      });
-      if (selectedFile) {
-        await uploadAttachment(taskId, selectedFile, currentUserId);
-        setSelectedFile(null);
-      }
-      setSuccess("Comment added successfully");
+      await addTaskDetailsComment(taskId, { commentText, commentedBy: currentUserId }, selectedFile, currentUserId);
+      setSelectedFile(null);
       setCommentText("");
-      loadAll();
-    } catch (err) {
-      setError(`Failed to add comment: ${err.message}`);
-    } finally {
-      setSubmitting(false);
-    }
+      setSuccess("Comment added");
+      await loadAll();
+    } catch (err) { setError(`Failed to add comment: ${err.message}`); }
+    finally       { setSubmitting(false); }
   };
 
-  // ✅ DELETE COMMENT
   const handleDeleteComment = async (id) => {
     try {
-      await deleteComment(id);
+      await deleteTaskDetailsComment(taskId, id, currentUserId);
       setSuccess("Comment deleted");
-      loadAll();
-    } catch (err) {
-      setError(`Failed to delete comment: ${err.message}`);
-    }
+      await loadAll();
+    } catch (err) { setError(`Failed to delete comment: ${err.message}`); }
   };
 
-  // ✅ DELETE ATTACHMENT
   const handleDeleteAttachment = async (id) => {
     try {
-      await deleteAttachment(id);
+      await deleteTaskDetailsAttachment(taskId, id, currentUserId);
       setSuccess("Attachment deleted");
-      loadAll();
-    } catch (err) {
-      setError(`Failed to delete attachment: ${err.message}`);
-    }
+      await loadAll();
+    } catch (err) { setError(`Failed to delete attachment: ${err.message}`); }
   };
 
-  // ✅ HELPER - STATUS COLOR
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Open":
-        return "default";
-      case "In Progress":
-        return "warning";
-      case "Closed":
-        return "success";
-      case "On Hold":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
-  // ✅ HELPER - PRIORITY COLOR
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case "Low":
-        return "success";
-      case "Medium":
-        return "info";
-      case "High":
-        return "warning";
-      case "Critical":
-        return "error";
-      default:
-        return "default";
-    }
-  };
-
-  // ✅ HELPER - GET USER NAME
+ 
   const getUserName = (userId) => {
-    const user = users.find(u => u.id === userId);
-    return user?.fullName || `User ${userId}`;
+    const u = users.find(u => u.id === userId);
+    return u?.fullName || `User ${userId}`;
   };
 
-  // ✅ HELPER - CHECK IF IMAGE
-  const isImage = (fileName) => {
-    const imageExts = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp"];
-    return imageExts.some(ext => fileName.toLowerCase().endsWith(ext));
+  const getProjectName = (projectId) => {
+    const p = projects.find(p => String(p.id) === String(projectId));
+    return p?.projectName || p?.name || (projectId ? `Project ${projectId}` : null);
   };
 
-  // ✅ HELPER - GET FILE ICON
-  const getFileIcon = (fileName) => {
-    if (isImage(fileName)) return "🖼️";
-    if (fileName.endsWith(".pdf")) return "📕";
-    if (fileName.endsWith(".zip") || fileName.endsWith(".rar")) return "📦";
-    if ([".doc", ".docx", ".txt"].some(ext => fileName.endsWith(ext))) return "📄";
-    return "📎";
-  };
-
-  // ✅ HELPER - CHECK COMMENT EDIT WINDOW (3 HOURS)
   const isCommentEditable = (createdAt) => {
     if (!createdAt) return true;
-    const commentTime = new Date(createdAt).getTime();
-    const now = new Date().getTime();
-    const threeHoursMs = 3 * 60 * 60 * 1000;
-    return now - commentTime < threeHoursMs;
+    return Date.now() - new Date(createdAt).getTime() < 3 * 60 * 60 * 1000;
   };
 
-  // ✅ HELPER - GET TIME REMAINING FOR EDIT
-  const getEditTimeRemaining = (createdAt) => {
-    if (!createdAt) return null;
-    const commentTime = new Date(createdAt).getTime();
-    const now = new Date().getTime();
-    const threeHoursMs = 3 * 60 * 60 * 1000;
-    const remaining = threeHoursMs - (now - commentTime);
-    
-    if (remaining <= 0) return null;
-    
-    const hours = Math.floor(remaining / (60 * 60 * 1000));
-    const minutes = Math.floor((remaining % (60 * 60 * 1000)) / (60 * 1000));
-    
-    return `${hours}h ${minutes}m`;
-  };
 
-  if (loading) return <CircularProgress sx={{ p: 3 }} />;
-  if (!task) return <Typography>Task not found</Typography>;
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "50vh" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!task) {
+    return (
+      <Box sx={{ p: 3 }}>
+        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <Typography color="text.secondary">Task not found.</Typography>
+      </Box>
+    );
+  }
+
+  const cardSx      = { boxShadow: "0 1px 4px rgba(0,0,0,0.07)", borderRadius: "12px", p: 0 };
+  const sectionLabel = {
+    fontSize: "0.7rem", fontWeight: 700, color: "#9ca3af",
+    textTransform: "uppercase", letterSpacing: "0.07em", mb: 1,
+  };
 
   return (
-    <Box className="task-details-container" sx={{ minHeight: "100vh", backgroundColor: "#fff" }}>
-      {/* ✅ ALERTS */}
-      {error && <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ m: 2 }}>{success}</Alert>}
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 
-      {/* ✅ TOP HEADER */}
-      <Box sx={{ borderBottom: "1px solid #e0e0e0", p: 2 }}>
-        <Box sx={{ maxWidth: "1800px", mx: "auto" }}>
-          <Breadcrumbs sx={{ mb: 0.5 }}>
-            <Link 
-              underline="hover" 
-              color="primary" 
-              sx={{ cursor: "pointer", fontSize: "0.85rem" }}
+      {/* â”€â”€ ALERTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {error && (
+        <Alert severity="error" onClose={() => setError("")} sx={{ borderRadius: "8px" }}>
+          {error}
+        </Alert>
+      )}
+      {success && (
+        <Alert severity="success" onClose={() => setSuccess("")} sx={{ borderRadius: "8px" }}>
+          {success}
+        </Alert>
+      )}
+      {usingMockData && (
+        <Alert severity="info" sx={{ borderRadius: "8px" }}>
+          Running in development mock mode
+        </Alert>
+      )}
+
+      {/* â”€â”€ HEADER CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Card sx={cardSx}>
+        <CardContent sx={{ p: "20px 24px !important" }}>
+          <Breadcrumbs
+            separator={<NavigateNextIcon sx={{ fontSize: "0.85rem", color: "#d1d5db" }} />}
+            sx={{ mb: 1.5 }}
+          >
+            <Link
+              underline="hover"
               onClick={() => navigate("/tasks")}
+              sx={{ cursor: "pointer", fontSize: "0.78rem", color: "#6b7280", "&:hover": { color: "#2563eb" } }}
             >
               Tasks
             </Link>
-            <Typography sx={{ fontSize: "0.85rem" }}>Task Details</Typography>
+            <Typography sx={{ fontSize: "0.78rem", color: "#374151" }}>{task.taskNo}</Typography>
           </Breadcrumbs>
-          <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.3 }}>
-            {task.taskNo}
-          </Typography>
-          <Typography sx={{ fontSize: "1rem", color: "#333", fontWeight: 500 }}>
-            {task.issueActionItem}
-          </Typography>
-        </Box>
-      </Box>
 
-      {/* ✅ TASK INFO ROW */}
-      <Box sx={{ borderBottom: "1px solid #e0e0e0", p: 2, backgroundColor: "#f9f9f9" }}>
-        <Box sx={{ maxWidth: "1800px", mx: "auto", display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-          <Box>
-            <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 0.2, fontSize: "0.75rem", fontWeight: 600 }}>
-              Project
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
-              {task.projectId ? `Project ${task.projectId}` : "N/A"}
-            </Typography>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 0.2, fontSize: "0.75rem", fontWeight: 600 }}>
-              Owner
-            </Typography>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-              <Avatar sx={{ bgcolor: "#1976d2", width: 24, height: 24, fontSize: "0.7rem" }}>
-                {getUserName(task.ownerId)[0]}
-              </Avatar>
-              <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
-                {getUserName(task.ownerId)}
+          <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
+            <Box>
+              <Typography sx={{ fontSize: "0.75rem", fontWeight: 600, color: "#9ca3af", mb: 0.3 }}>
+                {task.taskNo}
+              </Typography>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: "#111827", lineHeight: 1.3 }}>
+                {task.issueActionItem}
               </Typography>
             </Box>
-          </Box>
-          <Box>
-            <Typography variant="caption" color="textSecondary" sx={{ display: "block", mb: 0.2, fontSize: "0.75rem", fontWeight: 600 }}>
-              Target Date
-            </Typography>
-            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
-              {task.targetDate ? new Date(task.targetDate).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "Not set"}
-            </Typography>
-          </Box>
-        </Box>
-      </Box>
-
-      {/* ✅ MAIN LAYOUT - 65/35 WITH COLLAPSIBLE SIDEBAR */}
-      <Box sx={{ maxWidth: "1800px", mx: "auto", display: "flex", minHeight: "600px", position: "relative", flex: 1 }}>
-        {/* LEFT CONTENT AREA - 65% (Column Layout) */}
-        <Box sx={{ flex: 1, p: 2.5, borderRight: "1px solid #e0e0e0", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2.5 }}>
-          
-          {/* TABS SECTION */}
-          <Box>
-          {/* TABS */}
-          <Box sx={{ mb: 2, borderBottom: "1px solid #e0e0e0" }}>
-            <Tabs
-              value={activeTab}
-              onChange={(e, newValue) => setActiveTab(newValue)}
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<EditIcon fontSize="small" />}
+              onClick={() => navigate(`/task/${taskId}?edit=true`)}
               sx={{
-                "& .MuiTab-root": {
-                  textTransform: "none",
-                  fontSize: "0.9rem",
-                  fontWeight: 500,
-                  minWidth: "auto",
-                  px: 2,
-                  py: 1.5
-                }
+                borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600,
+                borderColor: "#e5e7eb", color: "#374151", whiteSpace: "nowrap", flexShrink: 0,
+                "&:hover": { borderColor: "#2563eb", color: "#2563eb", bgcolor: "#eff6ff" },
               }}
             >
-              <Tab label="Overview" />
-              <Tab label={`Attachments (${attachments.length})`} />
-              <Tab label={`History (${history.length})`} />
-              <Tab label="Related Tests" />
-            </Tabs>
+              Edit
+            </Button>
           </Box>
 
-          {/* TAB CONTENT */}
-          <Box sx={{ mt: 2 }}>
-            {/* OVERVIEW TAB */}
-            {activeTab === 0 && (
-              <Box>
-                {/* Description */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.95rem" }}>
-                    Description
-                  </Typography>
-                  <Box sx={{ p: 2, backgroundColor: "#f9f9f9", borderRadius: 1, border: "1px solid #e0e0e0" }}>
-                    <Typography sx={{ whiteSpace: "pre-wrap", fontSize: "0.9rem", color: "#424242", lineHeight: 1.6 }}>
-                      {task.description || "No description provided"}
+          {/* Meta strip */}
+          <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap", alignItems: "center" }}>
+            {[
+              { label: "Status",   node: <StatusChip status={task.status} /> },
+              { label: "Priority", node: <PriorityChip priority={task.priority} /> },
+              {
+                label: "Owner",
+                node: (
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
+                    <Avatar sx={{ width: 20, height: 20, fontSize: "0.6rem", bgcolor: avatarColor(task.ownerId) }}>
+                      {getUserName(task.ownerId)?.[0]}
+                    </Avatar>
+                    <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#374151" }}>
+                      {getUserName(task.ownerId)}
                     </Typography>
                   </Box>
-                </Box>
-
-                <Divider sx={{ my: 3 }} />
-
-                {/* Quick Views */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, fontSize: "0.95rem" }}>
-                    Quick Views
+                ),
+              },
+              {
+                label: "Target",
+                node: (
+                  <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#374151" }}>
+                    {fmtDate(task.targetDate)}
                   </Typography>
-                  <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                      <input type="checkbox" style={{ cursor: "pointer" }} />
-                      <Typography sx={{ fontSize: "0.9rem" }}>Authenticated</Typography>
-                    </Box>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
-                      <input type="checkbox" style={{ cursor: "pointer" }} />
-                      <Typography sx={{ fontSize: "0.9rem" }}>Production</Typography>
-                    </Box>
-                  </Box>
-                </Box>
-
-                <Divider sx={{ my: 3 }} />
-
-                {/* Additional Info */}
-                <Box sx={{ mb: 3 }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5, fontSize: "0.95rem" }}>
-                    Additional Info
-                  </Typography>
-                  <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2 }}>
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: "block", fontSize: "0.75rem", mb: 0.3 }}>
-                        Module
-                      </Typography>
-                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
-                        {task.status || "Not specified"}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: "block", fontSize: "0.75rem", mb: 0.3 }}>
-                        Status
-                      </Typography>
-                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
-                        {task.status || "Not specified"}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: "block", fontSize: "0.75rem", mb: 0.3 }}>
-                        Priority
-                      </Typography>
-                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
-                        {task.priority || "Not specified"}
-                      </Typography>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" color="textSecondary" sx={{ display: "block", fontSize: "0.75rem", mb: 0.3 }}>
-                        Created By
-                      </Typography>
-                      <Typography sx={{ fontSize: "0.9rem", fontWeight: 500 }}>
-                        {getUserName(task.createdBy)}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Box>
+                ),
+              },
+              ...(task.projectId ? [{
+                label: "Project",
+                node: (
+                  <Chip
+                    label={getProjectName(task.projectId)}
+                    size="small"
+                    sx={{ bgcolor: "#EEF2FF", color: "#4F46E5", fontWeight: 600, fontSize: "0.72rem", height: 20 }}
+                  />
+                ),
+              }] : []),
+            ].map(({ label, node }) => (
+              <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.7 }}>
+                <Typography sx={{ fontSize: "0.72rem", color: "#9ca3af", fontWeight: 500 }}>{label}</Typography>
+                {node}
               </Box>
-            )}
-
-            {/* COMMENTS TAB - REMOVED, NOW AT BOTTOM */}
-
-            {/* ATTACHMENTS TAB */}
-            {activeTab === 1 && (
-              <Box>
-                {attachments.length > 0 ? (
-                  <Box>
-                    {attachments.map((att) => (
-                      <Box
-                        key={att.id}
-                        sx={{
-                          p: 1.5,
-                          mb: 1,
-                          backgroundColor: "#f9f9f9",
-                          borderRadius: 1,
-                          border: "1px solid #e0e0e0",
-                          cursor: "pointer",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          "&:hover": { backgroundColor: "#f0f0f0", borderColor: "#1976d2" }
-                        }}
-                        onClick={() => {
-                          setSelectedAttachment(att);
-                          setOpenAttachmentModal(true);
-                        }}
-                      >
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                          <Typography sx={{ fontSize: "1.2rem" }}>
-                            {getFileIcon(att.fileName)}
-                          </Typography>
-                          <Box>
-                            <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
-                              {att.fileName}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: "0.75rem" }}>
-                              {att.uploadedAt ? new Date(att.uploadedAt).toLocaleDateString() : "Unknown"}
-                            </Typography>
-                          </Box>
-                        </Box>
-                        <Box sx={{ display: "flex", gap: 0.5 }}>
-                          <IconButton
-                            size="small"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              window.open(`data:application/octet-stream;base64,${att.fileData}`, "_blank");
-                            }}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                          <Button
-                            size="small"
-                            color="error"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteAttachment(att.id);
-                            }}
-                            sx={{ fontSize: "0.75rem" }}
-                          >
-                            Delete
-                          </Button>
-                        </Box>
-                      </Box>
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography color="textSecondary" sx={{ textAlign: "center", py: 3, fontSize: "0.9rem" }}>
-                    No attachments
-                  </Typography>
-                )}
-              </Box>
-            )}
-
-            {/* HISTORY TAB */}
-            {activeTab === 2 && (
-              <Box>
-                {history.length > 0 ? (
-                  <Box>
-                    {history.map((item, idx) => (
-                      <Box key={idx} sx={{ mb: 1.5, p: 1.5, backgroundColor: "#f9f9f9", borderRadius: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                          {getUserName(item.performedBy)}
-                        </Typography>
-                        <Typography variant="caption" color="textSecondary" sx={{ display: "block", fontSize: "0.75rem", mb: 0.5 }}>
-                          {item.timestamp ? new Date(item.timestamp).toLocaleString() : "Unknown"}
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ fontSize: "0.9rem" }}>
-                          {item.description || item.action || "Activity recorded"}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
-                ) : (
-                  <Typography color="textSecondary" sx={{ textAlign: "center", py: 3, fontSize: "0.9rem" }}>
-                    No history
-                  </Typography>
-                )}
-              </Box>
-            )}
-
-            {/* RELATED TESTS TAB */}
-            {activeTab === 3 && (
-              <Box sx={{ textAlign: "center", py: 3 }}>
-                <Typography color="textSecondary" sx={{ fontSize: "0.9rem" }}>
-                  No related tests
-                </Typography>
-              </Box>
-            )}
+            ))}
           </Box>
+        </CardContent>
+      </Card>
+
+      {/* ── ACTION BAR ──────────────────────────────────────────────────────── */}
+      <Card sx={{ ...cardSx, bgcolor: "#FAFBFF" }}>
+        <CardContent sx={{ p: "12px 20px !important" }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+            <Button variant="contained" size="small" startIcon={<EditIcon fontSize="small" />}
+              onClick={() => navigate(`/task/${taskId}?edit=true`)}
+              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
+                   bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}>
+              Edit Ticket
+            </Button>
+            <Button variant="outlined" size="small" startIcon={<SwapHorizIcon fontSize="small" />}
+              onClick={() => setOpenStatusDialog(true)}
+              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
+                   borderColor: "#E2E8F0", color: "#374151",
+                   "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
+              Change Status
+            </Button>
+            <Button variant="outlined" size="small" startIcon={<PersonOutlineIcon fontSize="small" />}
+              onClick={() => setOpenOwnershipDialog(true)}
+              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
+                   borderColor: "#E2E8F0", color: "#374151",
+                   "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
+              Assign Engineer
+            </Button>
+            <Box sx={{ flex: 1 }} />
+            <Button variant="outlined" size="small" color="error" startIcon={<DeleteIcon fontSize="small" />}
+              onClick={() => setOpenDeleteDialog(true)}
+              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem" }}>
+              Delete Ticket
+            </Button>
           </Box>
+        </CardContent>
+      </Card>
 
-          {/* ✅ COMMENTS SECTION CARD */}
-          <Card sx={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
-            <CardContent sx={{ display: "flex", flexDirection: "column", height: "400px", p: 0 }}>
-              {/* COMMENTS HEADER */}
-              <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
-                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1rem" }}>
-                  Comments ({comments.length})
-                </Typography>
-              </Box>
+      {/* ── MAIN CONTENT (full-width) ───────────────────────────────────────── */}
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
 
-              {/* COMMENTS LIST - SCROLLABLE */}
-              <Box sx={{ flex: 1, overflowY: "auto", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-                {comments.length > 0 ? (
-                  comments.map((comment) => (
-                    <Box key={comment.id} sx={{ pb: 1.5 }}>
-                      <Box sx={{ display: "flex", gap: 1, mb: 0.5 }}>
-                        <Avatar sx={{ bgcolor: "#1976d2", width: 28, height: 28, fontSize: "0.7rem", flexShrink: 0 }}>
-                          {getUserName(comment.commentedBy)[0]}
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
-                            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
-                              {getUserName(comment.commentedBy)}
-                            </Typography>
-                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
-                              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "Just now"}
-                            </Typography>
-                          </Box>
-                          <Typography sx={{ fontSize: "0.85rem", color: "#424242", lineHeight: 1.4, mt: 0.3 }}>
-                            {comment.commentText}
+          {/* TABS CARD */}
+          <Card sx={cardSx}>
+            <Box sx={{ borderBottom: "1px solid #f3f4f6" }}>
+              <Tabs
+                value={activeTab}
+                onChange={(_, v) => setActiveTab(v)}
+                sx={{
+                  px: 3,
+                  "& .MuiTab-root": {
+                    textTransform: "none", fontSize: "0.85rem", fontWeight: 500,
+                    color: "#6b7280", minWidth: "auto", px: 2, py: 1.75,
+                    "&.Mui-selected": { color: "#2563eb", fontWeight: 600 },
+                  },
+                  "& .MuiTabs-indicator": { bgcolor: "#2563eb", height: 2 },
+                }}
+              >
+                <Tab label="Overview" />
+                <Tab label={attachments.length ? `Attachments (${attachments.length})` : "Attachments"} />
+                <Tab label={history.length ? `History (${history.length})` : "History"} />
+                <Tab label="Related Tests" />
+              </Tabs>
+            </Box>
+
+            <Box sx={{ p: 3 }}>
+              {/* OVERVIEW */}
+              {activeTab === 0 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                  <Box>
+                    <Typography sx={sectionLabel}>Description</Typography>
+                    <Box sx={{ p: "14px 16px", bgcolor: "#f9fafb", borderRadius: "8px", border: "1px solid #f3f4f6" }}>
+                      <Typography sx={{ fontSize: "0.9rem", color: "#374151", lineHeight: 1.7, whiteSpace: "pre-wrap" }}>
+                        {task.description || "No description provided"}
+                      </Typography>
+                    </Box>
+                  </Box>
+
+                  <Divider />
+
+                  <Box>
+                    <Typography sx={sectionLabel}>Details</Typography>
+                    <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px 32px" }}>
+                      {[
+                        { label: "Status",      node: <StatusChip status={task.status} /> },
+                        { label: "Priority",    node: <PriorityChip priority={task.priority} /> },
+                        { label: "Owner",       text: getUserName(task.ownerId) },
+                        { label: "Created By",  text: getUserName(task.createdBy) },
+                        { label: "Target Date", text: fmtDate(task.targetDate) },
+                        { label: "Created At",  text: fmtDate(task.createdAt) },
+                      ].map(({ label, node, text }) => (
+                        <Box key={label}>
+                          <Typography sx={{ fontSize: "0.7rem", color: "#9ca3af", fontWeight: 500, mb: 0.3 }}>
+                            {label}
                           </Typography>
-                          {currentUserId === comment.commentedBy && (
-                            <Button
-                              size="small"
-                              color="error"
-                              onClick={() => handleDeleteComment(comment.id)}
-                              sx={{ fontSize: "0.75rem", mt: 0.5 }}
-                            >
-                              Delete
-                            </Button>
+                          {node ?? (
+                            <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>
+                              {text}
+                            </Typography>
                           )}
                         </Box>
-                      </Box>
-                    </Box>
-                  ))
-                ) : (
-                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-                    <Typography color="textSecondary" sx={{ fontSize: "0.9rem" }}>
-                      No comments yet
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
-
-              {/* COMMENT INPUT - STICKY AT BOTTOM */}
-              <Box sx={{ borderTop: "1px solid #e0e0e0", p: 2, backgroundColor: "#fafafa" }}>
-                <Box sx={{ display: "flex", gap: 1 }}>
-                  <TextField
-                    fullWidth
-                    multiline
-                    rows={2}
-                    placeholder="Add a comment..."
-                    value={commentText}
-                    onChange={(e) => setCommentText(e.target.value)}
-                    size="small"
-                    sx={{
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "#fff",
-                        borderRadius: "6px"
-                      }
-                    }}
-                  />
-                </Box>
-                {commentText.trim() && (
-                  <Box sx={{ mt: 1, display: "flex", gap: 1, justifyContent: "flex-end" }}>
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => setCommentText("")}
-                    >
-                      Clear
-                    </Button>
-                    <Button
-                      size="small"
-                      variant="contained"
-                      endIcon={<SendIcon fontSize="small" />}
-                      onClick={handleAddComment}
-                      disabled={submitting}
-                    >
-                      Send
-                    </Button>
-                  </Box>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Box>
-
-        {/* RIGHT SIDEBAR - COLLAPSIBLE */}
-        <SidebarPanel title="Task Actions">
-          {/* ADD COMMENT BUTTON */}
-          <Button
-            fullWidth
-            variant="contained"
-            endIcon={<SendIcon />}
-            onClick={() => {
-              setCommentText("Test comment");
-              handleAddComment();
-            }}
-            sx={{
-              mb: 2,
-              backgroundColor: "#fff",
-              color: "#2563eb",
-              fontWeight: 600,
-              "&:hover": { backgroundColor: "#f0f0f0" }
-            }}
-          >
-            Add comment
-          </Button>
-
-          <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
-
-          {/* ACTION BUTTONS */}
-          <Button
-            fullWidth
-            variant="text"
-            startIcon={<EditIcon />}
-            onClick={() => navigate(`/task/${taskId}?edit=true`)}
-            sx={{
-              mb: 1,
-              color: "#fff",
-              justifyContent: "flex-start",
-              fontSize: "0.9rem",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-            }}
-          >
-            Edit task
-          </Button>
-
-          <Button
-            fullWidth
-            variant="text"
-            onClick={() => setOpenStatusDialog(true)}
-            sx={{
-              mb: 1,
-              color: "#fff",
-              justifyContent: "flex-start",
-              fontSize: "0.9rem",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-            }}
-          >
-            Change Status
-          </Button>
-
-          <Button
-            fullWidth
-            variant="text"
-            onClick={() => setOpenOwnershipDialog(true)}
-            sx={{
-              mb: 1,
-              color: "#fff",
-              justifyContent: "flex-start",
-              fontSize: "0.9rem",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-            }}
-          >
-            Reassign
-          </Button>
-
-          <Button
-            fullWidth
-            variant="text"
-            startIcon={<DeleteIcon />}
-            onClick={() => setOpenDeleteDialog(true)}
-            sx={{
-              mb: 3,
-              color: "#fff",
-              justifyContent: "flex-start",
-              fontSize: "0.9rem",
-              "&:hover": { backgroundColor: "rgba(255,255,255,0.1)" }
-            }}
-          >
-            Delete Task
-          </Button>
-
-          <Divider sx={{ my: 2, borderColor: "rgba(255,255,255,0.2)" }} />
-
-          {/* COMMENTS LIST */}
-          <Typography variant="caption" sx={{ display: "block", mb: 1.5, fontSize: "0.75rem", fontWeight: 600, textTransform: "uppercase", opacity: 0.8 }}>
-            Comments
-          </Typography>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {comments.length > 0 ? (
-              comments.slice(0, 5).map((comment) => (
-                <Box key={comment.id} sx={{ pb: 1.5, borderBottom: "1px solid rgba(255,255,255,0.2)" }}>
-                  <Box sx={{ display: "flex", gap: 0.8, alignItems: "flex-start" }}>
-                    <Avatar sx={{ bgcolor: "#fff", color: "#2563eb", width: 20, height: 20, fontSize: "0.7rem", flexShrink: 0 }}>
-                      {getUserName(comment.commentedBy)[0]}
-                    </Avatar>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" sx={{ display: "block", fontWeight: 600, fontSize: "0.75rem" }}>
-                        {getUserName(comment.commentedBy)}
-                      </Typography>
-                      <Typography variant="caption" sx={{ display: "block", fontSize: "0.65rem", opacity: 0.8, mb: 0.3 }}>
-                        {comment.createdAt ? new Date(comment.createdAt).toLocaleTimeString() : "Just now"}
-                      </Typography>
-                      <Typography sx={{ fontSize: "0.75rem", lineHeight: 1.3, opacity: 0.9 }}>
-                        {comment.commentText.substring(0, 60)}...
-                      </Typography>
+                      ))}
                     </Box>
                   </Box>
                 </Box>
-              ))
-            ) : (
-              <Typography variant="caption" sx={{ fontSize: "0.75rem", opacity: 0.8 }}>
-                No comments yet
-              </Typography>
-            )}
-          </Box>
-        </SidebarPanel>
-      </Box>
+              )}
 
-      {/* ✅ DIALOGS */}
-
-      {/* STATUS CHANGE DIALOG */}
-      <Dialog open={openStatusDialog} onClose={() => setOpenStatusDialog(false)}>
-        <DialogTitle>Change Status</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1, minWidth: "300px" }}>
-            {["Open", "In Progress", "Closed", "On Hold"].map((status) => (
-              <Button
-                key={status}
-                variant={task.status === status ? "contained" : "outlined"}
-                fullWidth
-                onClick={() => handleStatusChange(status)}
-                disabled={submitting}
-              >
-                {status}
-              </Button>
-            ))}
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* PRIORITY CHANGE DIALOG */}
-      <Dialog open={openPriorityDialog} onClose={() => setOpenPriorityDialog(false)}>
-        <DialogTitle>Change Priority</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1, minWidth: "300px" }}>
-            {["Low", "Medium", "High", "Critical"].map((priority) => (
-              <Button
-                key={priority}
-                variant={task.priority === priority ? "contained" : "outlined"}
-                fullWidth
-                onClick={() => handlePriorityChange(priority)}
-                disabled={submitting}
-              >
-                {priority}
-              </Button>
-            ))}
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* OWNERSHIP CHANGE DIALOG */}
-      <Dialog open={openOwnershipDialog} onClose={() => setOpenOwnershipDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Reassign Task</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
-            {users.map((user) => (
-              <Button
-                key={user.id}
-                variant={task.ownerId === user.id ? "contained" : "outlined"}
-                fullWidth
-                onClick={() => handleOwnershipChange(user.id)}
-                disabled={submitting}
-              >
-                {user.fullName || `User ${user.id}`}
-              </Button>
-            ))}
-          </Box>
-        </DialogContent>
-      </Dialog>
-
-      {/* DELETE TASK DIALOG */}
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Delete Task</DialogTitle>
-        <DialogContent sx={{ minWidth: "300px" }}>
-          <Typography sx={{ mt: 2 }}>
-            Are you sure you want to delete this task? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <Box sx={{ p: 2, display: "flex", gap: 1, justifyContent: "flex-end" }}>
-          <Button variant="outlined" onClick={() => setOpenDeleteDialog(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="contained"
-            color="error"
-            onClick={handleDeleteTask}
-            disabled={submitting}
-          >
-            {submitting ? "Deleting..." : "Delete"}
-          </Button>
-        </Box>
-      </Dialog>
-
-      {/* ATTACHMENT PREVIEW MODAL */}
-      <Modal
-        open={openAttachmentModal}
-        onClose={() => {
-          setOpenAttachmentModal(false);
-          setSelectedAttachment(null);
-        }}
-        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
-      >
-        <Box
-          sx={{
-            maxWidth: "90vw",
-            maxHeight: "90vh",
-            backgroundColor: "#fff",
-            p: 2,
-            borderRadius: 1,
-            position: "relative",
-            boxShadow: "0 5px 25px rgba(0,0,0,0.3)"
-          }}
-        >
-          <IconButton
-            onClick={() => {
-              setOpenAttachmentModal(false);
-              setSelectedAttachment(null);
-            }}
-            sx={{ position: "absolute", top: 8, right: 8, zIndex: 10 }}
-          >
-            <CloseIcon />
-          </IconButton>
-
-          {selectedAttachment && (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, alignItems: "center" }}>
-              <Typography variant="h6" sx={{ mt: 2 }}>
-                {selectedAttachment.fileName}
-              </Typography>
-
-              {isImage(selectedAttachment.fileName) ? (
-                <Box
-                  component="img"
-                  src={`data:image/*;base64,${selectedAttachment.fileData}`}
-                  alt={selectedAttachment.fileName}
-                  sx={{ maxWidth: "100%", maxHeight: "70vh", borderRadius: 1 }}
+              {/* ATTACHMENTS */}
+              {activeTab === 1 && (
+                <AttachmentTable
+                  attachments={attachments}
+                  onDelete={handleDeleteAttachment}
+                  onPreview={(att) => { setSelectedAttachment(att); setOpenAttachmentModal(true); }}
                 />
-              ) : (
-                <Box sx={{ textAlign: "center", py: 4 }}>
-                  <Typography variant="h4" sx={{ mb: 2 }}>
-                    {getFileIcon(selectedAttachment.fileName)}
-                  </Typography>
-                  <Typography color="textSecondary" sx={{ mb: 2 }}>
-                    Preview not available for this file type
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    startIcon={<DownloadIcon />}
-                    onClick={() => {
-                      window.open(`data:application/octet-stream;base64,${selectedAttachment.fileData}`, "_blank");
-                    }}
-                  >
-                    Download File
-                  </Button>
+              )}
+
+              {/* HISTORY */}
+              {activeTab === 2 && (
+                <ActivityTimeline history={history} getUserName={getUserName} />
+              )}
+
+              {/* RELATED TESTS */}
+              {activeTab === 3 && (
+                <Box sx={{ py: 5, textAlign: "center" }}>
+                  <Typography sx={{ fontSize: "0.9rem", color: "#9ca3af" }}>No related tests</Typography>
                 </Box>
               )}
             </Box>
-          )}
+          </Card>
+
+          {/* COMMENTS CARD */}
+          <Card sx={{ ...cardSx, overflow: "hidden" }}>
+            <CardContent sx={{ p: "0 !important" }}>
+              {/* Header */}
+              <Box sx={{
+                px: 3, py: 2, borderBottom: "1px solid #f3f4f6",
+                display: "flex", alignItems: "center", gap: 1,
+              }}>
+                <ChatBubbleOutlineIcon sx={{ fontSize: "1rem", color: "#6b7280" }} />
+                <Typography sx={{ fontWeight: 600, fontSize: "0.9rem", color: "#111827" }}>
+                  Comments
+                </Typography>
+                {comments.length > 0 && (
+                  <Box sx={{
+                    ml: 0.25, px: "7px", bgcolor: "#e5e7eb", borderRadius: "10px",
+                    display: "inline-flex", alignItems: "center",
+                  }}>
+                    <Typography sx={{ fontSize: "0.7rem", fontWeight: 700, color: "#374151", lineHeight: "18px" }}>
+                      {comments.length}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* Scrollable list */}
+              <Box sx={{
+                maxHeight: 380, overflowY: "auto", px: 3, pt: 2.5, pb: 1.5,
+                "&::-webkit-scrollbar":       { width: "5px" },
+                "&::-webkit-scrollbar-track": { bgcolor: "transparent" },
+                "&::-webkit-scrollbar-thumb": { bgcolor: "#e5e7eb", borderRadius: "4px" },
+              }}>
+                <CommentTimeline
+                  comments={comments}
+                  currentUserId={currentUserId}
+                  getUserName={getUserName}
+                  onDelete={handleDeleteComment}
+                />
+              </Box>
+
+              {/* Sticky composer */}
+              <Box sx={{ px: 3, py: 2, borderTop: "1px solid #f3f4f6", bgcolor: "#fafafa" }}>
+                <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+                  <Avatar sx={{
+                    width: 32, height: 32, fontSize: "0.72rem",
+                    bgcolor: avatarColor(currentUserId), fontWeight: 700, flexShrink: 0, mt: 0.5,
+                  }}>
+                    {getUserName(currentUserId)?.[0] ?? "U"}
+                  </Avatar>
+                  <Box sx={{ flex: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+                    <TextField
+                      inputRef={commentInputRef}
+                      fullWidth
+                      multiline
+                      minRows={commentText ? 3 : 1}
+                      placeholder="Add a commentâ€¦ (Ctrl+Enter to send)"
+                      value={commentText}
+                      onChange={(e) => setCommentText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && commentText.trim()) {
+                          handleAddComment();
+                        }
+                      }}
+                      size="small"
+                      sx={{
+                        "& .MuiOutlinedInput-root": {
+                          bgcolor: "#fff", borderRadius: "8px", fontSize: "0.875rem", transition: "all 0.2s",
+                          "& fieldset":             { borderColor: "#e5e7eb" },
+                          "&:hover fieldset":       { borderColor: "#d1d5db" },
+                          "&.Mui-focused fieldset": { borderColor: "#3b82f6" },
+                        },
+                      }}
+                    />
+                    {/* Send controls â€” slide in when text is present */}
+                    <Box sx={{
+                      display: "flex", gap: 1, justifyContent: "flex-end",
+                      maxHeight: commentText.trim() ? "40px" : "0px",
+                      opacity: commentText.trim() ? 1 : 0,
+                      overflow: "hidden",
+                      transition: "max-height 0.25s ease, opacity 0.2s ease",
+                    }}>
+                      <Button
+                        size="small" variant="outlined"
+                        onClick={() => setCommentText("")}
+                        sx={{ borderRadius: "7px", fontSize: "0.78rem", borderColor: "#e5e7eb", color: "#6b7280" }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="small" variant="contained"
+                        endIcon={<SendIcon sx={{ fontSize: "0.9rem" }} />}
+                        onClick={handleAddComment}
+                        disabled={submitting || !commentText.trim()}
+                        sx={{ borderRadius: "7px", fontSize: "0.78rem", bgcolor: "#2563eb", "&:hover": { bgcolor: "#1d4ed8" } }}
+                      >
+                        {submitting ? "Sending…" : "Send"}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+      </Box>
+
+
+      {/* â”€â”€ DIALOGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+
+      <Dialog open={openStatusDialog} onClose={() => setOpenStatusDialog(false)}
+        PaperProps={{ sx: { borderRadius: "12px", minWidth: 300 } }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem", pb: 1 }}>Change Status</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
+            {["Open", "In Progress", "Closed", "On Hold"].map((s) => (
+              <Button key={s} fullWidth
+                variant={task.status === s ? "contained" : "outlined"}
+                onClick={() => handleStatusChange(s)} disabled={submitting}
+                sx={{ borderRadius: "8px", textTransform: "none", justifyContent: "flex-start", fontWeight: 500 }}
+              >
+                {s}
+              </Button>
+            ))}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openPriorityDialog} onClose={() => setOpenPriorityDialog(false)}
+        PaperProps={{ sx: { borderRadius: "12px", minWidth: 300 } }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem", pb: 1 }}>Change Priority</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
+            {["Low", "Medium", "High", "Critical"].map((p) => (
+              <Button key={p} fullWidth
+                variant={task.priority === p ? "contained" : "outlined"}
+                onClick={() => handlePriorityChange(p)} disabled={submitting}
+                sx={{ borderRadius: "8px", textTransform: "none", justifyContent: "flex-start", fontWeight: 500 }}
+              >
+                {p}
+              </Button>
+            ))}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openOwnershipDialog} onClose={() => setOpenOwnershipDialog(false)}
+        PaperProps={{ sx: { borderRadius: "12px" } }} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem", pb: 1 }}>Reassign Task</DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
+            {users.map((user) => (
+              <Button key={user.id} fullWidth
+                variant={task.ownerId === user.id ? "contained" : "outlined"}
+                onClick={() => handleOwnershipChange(user.id)} disabled={submitting}
+                sx={{ borderRadius: "8px", textTransform: "none", justifyContent: "flex-start", fontWeight: 500 }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Avatar sx={{ width: 24, height: 24, fontSize: "0.7rem", bgcolor: avatarColor(user.id) }}>
+                    {(user.fullName || `U${user.id}`)[0]}
+                  </Avatar>
+                  {user.fullName || `User ${user.id}`}
+                </Box>
+              </Button>
+            ))}
+          </Box>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}
+        PaperProps={{ sx: { borderRadius: "12px", minWidth: 320 } }}>
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem" }}>Delete Task</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: "#6b7280", fontSize: "0.9rem" }}>
+            Are you sure you want to delete this task? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <Box sx={{ p: 2, pt: 0, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+          <Button variant="outlined" onClick={() => setOpenDeleteDialog(false)}
+            sx={{ borderRadius: "8px", textTransform: "none" }}>
+            Cancel
+          </Button>
+          <Button variant="contained" color="error" onClick={handleDeleteTask} disabled={submitting}
+            sx={{ borderRadius: "8px", textTransform: "none" }}>
+            {submitting ? "Deletingâ€¦" : "Delete"}
+          </Button>
         </Box>
+      </Dialog>
+
+      {/* â”€â”€ ATTACHMENT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <Modal
+        open={openAttachmentModal}
+        onClose={() => { setOpenAttachmentModal(false); setSelectedAttachment(null); }}
+        sx={{ display: "flex", alignItems: "center", justifyContent: "center" }}
+      >
+        <Fade in={openAttachmentModal}>
+          <Box sx={{
+            maxWidth: "90vw", maxHeight: "90vh", bgcolor: "#fff",
+            borderRadius: "12px", p: 3, position: "relative",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.2)", outline: "none",
+          }}>
+            <IconButton
+              onClick={() => { setOpenAttachmentModal(false); setSelectedAttachment(null); }}
+              sx={{ position: "absolute", top: 8, right: 8 }}
+            >
+              <CloseIcon />
+            </IconButton>
+            {selectedAttachment && (
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2, mt: 1 }}>
+                <Typography sx={{ fontWeight: 600, fontSize: "0.95rem", pr: 4 }}>
+                  {selectedAttachment.fileName}
+                </Typography>
+                {isImage(selectedAttachment.fileName) ? (
+                  <Box
+                    component="img"
+                    src={`data:image/*;base64,${selectedAttachment.fileData}`}
+                    alt={selectedAttachment.fileName}
+                    sx={{ maxWidth: "100%", maxHeight: "65vh", borderRadius: "8px" }}
+                  />
+                ) : (
+                  <Box sx={{ textAlign: "center", py: 4 }}>
+                    <Typography sx={{ fontSize: "3rem", mb: 1 }}>ðŸ“„</Typography>
+                    <Typography color="text.secondary" sx={{ mb: 2, fontSize: "0.9rem" }}>
+                      Preview not available for this file type
+                    </Typography>
+                    <Button variant="contained" startIcon={<DownloadIcon />}
+                      onClick={() => window.open(`data:application/octet-stream;base64,${selectedAttachment.fileData}`, "_blank")}
+                      sx={{ borderRadius: "8px" }}
+                    >
+                      Download File
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            )}
+          </Box>
+        </Fade>
       </Modal>
     </Box>
   );
