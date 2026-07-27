@@ -31,6 +31,15 @@ public class TaskCommentController {
         return ResponseEntity.ok(service.addComment(taskId, dto));
     }
 
+    /* ================= UPDATE COMMENT ================= */
+    @PutMapping("/api/comments/{commentId}")
+    public ResponseEntity<TaskCommentDto> updateComment(
+            @PathVariable Long commentId,
+            @Valid @RequestBody TaskCommentDto dto
+    ) {
+        return ResponseEntity.ok(service.updateComment(commentId, dto));
+    }
+
     /* ================= DELETE COMMENT ================= */
     @DeleteMapping("/api/comments/{commentId}")
     public ResponseEntity<Void> deleteComment(@PathVariable Long commentId) {

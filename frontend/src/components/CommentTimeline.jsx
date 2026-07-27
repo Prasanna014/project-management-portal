@@ -1,6 +1,7 @@
-import React from "react";
-import { Box, Typography, Avatar, IconButton } from "@mui/material";
+import React, { useState } from "react";
+import { Box, Typography, Avatar, IconButton, TextField, Button } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 
 const COLORS = ["#3b82f6","#8b5cf6","#ec4899","#f59e0b","#10b981","#ef4444"];
 const avatarColor = (id) => COLORS[(Number(id) || 0) % COLORS.length];
@@ -8,12 +9,15 @@ const avatarColor = (id) => COLORS[(Number(id) || 0) % COLORS.length];
 function fmtTime(ts) {
   if (!ts) return "Just now";
   return new Date(ts).toLocaleString("en-US", {
-    month: "short", day: "numeric",
+    year: "numeric", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
 }
 
-export default function CommentTimeline({ comments = [], currentUserId, getUserName, onDelete }) {
+export default function CommentTimeline({ comments = [], currentUserId, getUserName, onDelete, onEdit }) {
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+
   if (!comments.length) {
     return (
       <Box sx={{ py: 6, textAlign: "center" }}>
@@ -31,6 +35,9 @@ export default function CommentTimeline({ comments = [], currentUserId, getUserN
         const isOwn = Number(currentUserId) === Number(comment.commentedBy);
         const initials = author.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
         const color = avatarColor(comment.commentedBy);
+        const isEditing = String(editingId) === String(comment.id);
+
+        const startedAt = comment.commentedAt || comment.createdAt || comment.commented_at;
 
         return (
           <Box key={comment.id} sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
@@ -53,8 +60,20 @@ export default function CommentTimeline({ comments = [], currentUserId, getUserN
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexShrink: 0 }}>
                     <Typography sx={{ fontSize: "0.72rem", color: "#9ca3af" }}>
-                      {fmtTime(comment.createdAt)}
+                      {fmtTime(startedAt)}
                     </Typography>
+                    {isOwn && onEdit && !isEditing && (
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditingId(comment.id);
+                          setEditingText(comment.commentText || "");
+                        }}
+                        sx={{ width: 20, height: 20, color: "#d1d5db", "&:hover": { color: "#2563eb" } }}
+                      >
+                        <EditOutlinedIcon sx={{ fontSize: "0.9rem" }} />
+                      </IconButton>
+                    )}
                     {isOwn && onDelete && (
                       <IconButton
                         size="small"
@@ -66,9 +85,56 @@ export default function CommentTimeline({ comments = [], currentUserId, getUserN
                     )}
                   </Box>
                 </Box>
-                <Typography sx={{ fontSize: "0.85rem", color: "#374151", lineHeight: 1.6, wordBreak: "break-word" }}>
-                  {comment.commentText}
-                </Typography>
+                {isEditing ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <TextField
+                      value={editingText}
+                      onChange={(event) => setEditingText(event.target.value)}
+                      size="small"
+                      multiline
+                      minRows={2}
+                      autoFocus
+                    />
+                    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          setEditingId(null);
+                          setEditingText("");
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        disabled={!editingText.trim()}
+                        onClick={async () => {
+                          await onEdit(comment.id, editingText.trim());
+                          setEditingId(null);
+                          setEditingText("");
+                        }}
+                      >
+                        Save
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography
+                    sx={{
+                      fontSize: "0.85rem",
+                      color: "#374151",
+                      lineHeight: 1.6,
+                      wordBreak: "break-word",
+                      maxHeight: 120,
+                      overflowY: "auto",
+                      pr: 0.5,
+                    }}
+                  >
+                    {comment.commentText}
+                  </Typography>
+                )}
               </Box>
             </Box>
           </Box>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Stack,
   Box,
   Card,
   CardContent,
@@ -12,10 +13,15 @@ import {
   CircularProgress,
   Avatar,
   Divider,
-  Paper
+  Paper,
+  Chip,
 } from "@mui/material";
+import dayjs from "dayjs";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import DeleteIcon from "@mui/icons-material/Delete";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import { getAllProjects } from "../services/projectService";
 import { getUsers } from "../services/userServices";
@@ -30,6 +36,7 @@ export default function CreateTaskPage() {
   const [users, setUsers] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [loadingError, setLoadingError] = useState("");
+  const [loadingWarning, setLoadingWarning] = useState("");
   
   const [form, setForm] = useState({
     issueActionItem: "",
@@ -52,27 +59,63 @@ export default function CreateTaskPage() {
     loadData();
   }, []);
 
+  const getErrorMessage = (err, fallback) => {
+    const status = err?.response?.status;
+    const apiMessage = err?.response?.data?.message;
+
+    if (status === 401) {
+      return "Session expired or unauthorized access. Please sign in again.";
+    }
+    if (status === 403) {
+      return "You do not have permission for this action.";
+    }
+    return apiMessage || err?.message || fallback;
+  };
+
   const loadData = async () => {
     setLoadingData(true);
     setLoadingError("");
+    setLoadingWarning("");
     
     try {
-      const [projectsRes, usersRes] = await Promise.all([
+      const [projectsResult, usersResult] = await Promise.allSettled([
         getAllProjects(),
         getUsers()
       ]);
 
-      setProjects(projectsRes || []);
-      setUsers(usersRes || []);
+      let nextError = "";
+      let nextWarning = "";
 
-      if (!projectsRes || projectsRes.length === 0) {
-        setLoadingError("❌ No projects found. Please create a project first.");
+      if (projectsResult.status === "fulfilled") {
+        setProjects(projectsResult.value || []);
+      } else {
+        setProjects([]);
+        nextError = getErrorMessage(projectsResult.reason, "Unable to load projects.");
       }
-      if (!usersRes || usersRes.length === 0) {
-        setLoadingError("❌ No users found. Please add users first.");
+
+      if (usersResult.status === "fulfilled") {
+        setUsers(usersResult.value || []);
+      } else {
+        setUsers([]);
+        nextWarning = getErrorMessage(usersResult.reason, "Unable to load users. You can still create a task.");
       }
+
+      if (projectsResult.status === "fulfilled" && (!projectsResult.value || projectsResult.value.length === 0)) {
+        nextError = "No projects found. Please create a project first.";
+      }
+
+      if (usersResult.status === "fulfilled" && (!usersResult.value || usersResult.value.length === 0)) {
+        nextWarning = "No users found. Task owner will default to current user.";
+      }
+
+      if (nextError && nextWarning && nextError === nextWarning) {
+        nextWarning = "";
+      }
+
+      setLoadingError(nextError);
+      setLoadingWarning(nextWarning);
     } catch (err) {
-      setLoadingError(`Error: ${err.message}`);
+      setLoadingError(getErrorMessage(err, "Unable to load page data."));
     } finally {
       setLoadingData(false);
     }
@@ -80,6 +123,13 @@ export default function CreateTaskPage() {
 
   const handleChange = (field, value) => {
     setForm(prev => ({ ...prev, [field]: value }));
+  };
+
+  const mapPriorityForApi = (priority) => {
+    if (priority === "Critical") {
+      return "High";
+    }
+    return priority;
   };
 
   const getPriorityColor = (priority) => {
@@ -156,7 +206,7 @@ export default function CreateTaskPage() {
 
       // Get project code for task numbering
       const project = projects.find(p => p.id == form.projectId);
-      const projectCode = project?.name?.substring(0, 3).toUpperCase() || "TSK";
+      const projectCode = (project?.projectCode || project?.name || "TSK").substring(0, 3).toUpperCase();
 
       // Get all tasks to calculate next number
       const allTasks = await getAllTasks();
@@ -178,7 +228,7 @@ export default function CreateTaskPage() {
         projectId: Number(form.projectId),
         issueActionItem: form.issueActionItem,
         description: form.description,
-        priority: form.priority,
+        priority: mapPriorityForApi(form.priority),
         status: "Open",
         ownerId: form.ownerId ? Number(form.ownerId) : currentUserId,
         targetDate: form.targetDate,
@@ -193,7 +243,7 @@ export default function CreateTaskPage() {
       }, 1500);
 
     } catch (err) {
-      setSubmitError(`Error: ${err.message}`);
+      setSubmitError(getErrorMessage(err, "Failed to create task."));
     } finally {
       setSubmitting(false);
     }
@@ -208,26 +258,44 @@ export default function CreateTaskPage() {
   }
 
   return (
-    <Box>
-        {/* HEADER */}
-        <Box sx={{ mb: 3 }}>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Create Task
-          </Typography>
-          <Typography variant="body2" color="textSecondary">
-            Tasks / Create Task
-          </Typography>
-        </Box>
+    <Stack spacing={2.5}>
+        <Card
+          sx={{
+            borderRadius: 3,
+            border: "1px solid #dbe7ff",
+            background: "linear-gradient(115deg, #f8fbff 0%, #f0fdf4 100%)",
+            boxShadow: "0 12px 26px rgba(30, 64, 175, 0.08)",
+          }}
+        >
+          <CardContent sx={{ py: 3 }}>
+            <Stack spacing={1}>
+              <Chip
+                label="Task Studio"
+                sx={{
+                  alignSelf: "flex-start",
+                  bgcolor: "#dbeafe",
+                  color: "#1d4ed8",
+                  fontWeight: 700,
+                }}
+              />
+              <Typography variant="h4" sx={{ fontWeight: 800, lineHeight: 1.1 }}>
+                Create Task
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Add a new work item with owner, priority, deadline, and attachments.
+              </Typography>
+            </Stack>
+          </CardContent>
+        </Card>
 
-        {/* ALERTS */}
-        {loadingError && <Alert severity="error" sx={{ mb: 2 }}>{loadingError}</Alert>}
-        {submitError && <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>}
-        {submitSuccess && <Alert severity="success" sx={{ mb: 2 }}>Task created successfully! Redirecting...</Alert>}
+        {loadingError && <Alert severity="error">{loadingError}</Alert>}
+        {loadingWarning && <Alert severity="warning">{loadingWarning}</Alert>}
+        {submitError && <Alert severity="error">{submitError}</Alert>}
+        {submitSuccess && <Alert severity="success">Task created successfully! Redirecting...</Alert>}
 
-        {/* TASK INFORMATION CARD */}
-        <Card sx={{ mb: 3, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+        <Card sx={{ borderRadius: 3, border: "1px solid #e5e7eb", boxShadow: "0 6px 24px rgba(15, 23, 42, 0.06)" }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
               Task Information
             </Typography>
 
@@ -253,7 +321,7 @@ export default function CreateTaskPage() {
                   <MenuItem value="">Select Project</MenuItem>
                   {projects.map((proj) => (
                     <MenuItem key={proj.id} value={proj.id}>
-                      {proj.name}
+                      {proj.projectCode ? `${proj.projectCode} - ${proj.projectName || proj.name}` : (proj.projectName || proj.name)}
                     </MenuItem>
                   ))}
                 </TextField>
@@ -356,7 +424,7 @@ export default function CreateTaskPage() {
                     }
                   }}
                 >
-                  <MenuItem value="">Select Owner</MenuItem>
+                  <MenuItem value="">Assign to me</MenuItem>
                   {users.map((user) => (
                     <MenuItem key={user.id} value={user.id}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -374,29 +442,72 @@ export default function CreateTaskPage() {
                 <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1, fontSize: "0.9rem" }}>
                   Target Date
                 </Typography>
-                <TextField
-                  fullWidth
-                  type="date"
-                  value={form.targetDate}
-                  onChange={(e) => handleChange("targetDate", e.target.value)}
-                  size="small"
-                  sx={{
-                    "& .MuiOutlinedInput-root": {
-                      backgroundColor: "#fff",
-                      borderRadius: "6px"
-                    }
-                  }}
-                  InputLabelProps={{ shrink: true }}
-                />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    value={form.targetDate ? dayjs(form.targetDate) : null}
+                    onChange={(nextDate) => handleChange("targetDate", nextDate ? nextDate.format("YYYY-MM-DD") : "")}
+                    format="DD MMM YYYY"
+                    slots={{
+                      openPickerIcon: CalendarMonthIcon,
+                    }}
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        size: "small",
+                        placeholder: "Select date",
+                        sx: {
+                          "& .MuiOutlinedInput-root": {
+                            backgroundColor: "#fff",
+                            borderRadius: "10px",
+                          },
+                        },
+                      },
+                      popper: {
+                        sx: {
+                          "& .MuiPaper-root": {
+                            borderRadius: "14px",
+                            border: "1px solid #dbeafe",
+                            boxShadow: "0 16px 32px rgba(30, 64, 175, 0.18)",
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </LocalizationProvider>
+                <Stack direction="row" spacing={0.8} sx={{ mt: 1 }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    sx={{ textTransform: "none", borderRadius: 999 }}
+                    onClick={() => handleChange("targetDate", dayjs().format("YYYY-MM-DD"))}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    sx={{ textTransform: "none", borderRadius: 999 }}
+                    onClick={() => handleChange("targetDate", dayjs().add(3, "day").format("YYYY-MM-DD"))}
+                  >
+                    +3 days
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    sx={{ textTransform: "none", borderRadius: 999 }}
+                    onClick={() => handleChange("targetDate", dayjs().add(7, "day").format("YYYY-MM-DD"))}
+                  >
+                    +1 week
+                  </Button>
+                </Stack>
               </Box>
             </Box>
           </CardContent>
         </Card>
 
-        {/* ATTACHMENTS CARD */}
-        <Card sx={{ mb: 3, boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+        <Card sx={{ borderRadius: 3, border: "1px solid #e5e7eb", boxShadow: "0 6px 24px rgba(15, 23, 42, 0.06)" }}>
           <CardContent>
-            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2.5 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2.5 }}>
               Attachments
             </Typography>
 
@@ -462,7 +573,7 @@ export default function CreateTaskPage() {
                       }}
                     >
                       <Typography variant="body2" sx={{ fontWeight: 500, fontSize: "0.9rem" }}>
-                        📄 {att.name}
+                        {att.name}
                       </Typography>
                       <Button
                         size="small"
@@ -481,7 +592,6 @@ export default function CreateTaskPage() {
           </CardContent>
         </Card>
 
-        {/* ACTION BUTTONS */}
         <Box sx={{ display: "flex", gap: 2, justifyContent: "flex-end" }}>
           <Button
             variant="outlined"
@@ -494,12 +604,16 @@ export default function CreateTaskPage() {
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={submitting || !form.issueActionItem || !form.projectId}
-            sx={{ px: 3 }}
+            disabled={submitting || !form.issueActionItem || !form.projectId || projects.length === 0}
+            sx={{
+              px: 3,
+              background: "linear-gradient(135deg, #2563eb 0%, #14b8a6 100%)",
+              boxShadow: "0 8px 16px rgba(37, 99, 235, 0.24)",
+            }}
           >
             {submitting ? "Creating..." : "Create Task"}
           </Button>
         </Box>
-    </Box>
+    </Stack>
   );
 }

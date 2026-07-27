@@ -37,6 +37,20 @@ public class TaskCommentService {
         return mapToDto(saved);
     }
 
+    /* ================= UPDATE COMMENT ================= */
+    public TaskCommentDto updateComment(Long commentId, TaskCommentDto dto) {
+        TaskComment existing = repository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("Comment not found: " + commentId));
+
+        existing.setCommentText(dto.getCommentText());
+        if (dto.getCommentedBy() != null) {
+            existing.setCommentedBy(dto.getCommentedBy());
+        }
+
+        TaskComment saved = repository.save(existing);
+        return mapToDto(saved);
+    }
+
     /* ================= DELETE ================= */
     public void deleteComment(Long commentId) {
         TaskComment existing = repository.findById(commentId)

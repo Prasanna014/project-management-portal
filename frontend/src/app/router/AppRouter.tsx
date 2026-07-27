@@ -8,6 +8,8 @@ import { TasksPage } from "@modules/tasks/pages/TasksPage";
 import { ReportsPage } from "@modules/reports/pages/ReportsPage";
 import { AdministrationPage } from "@modules/administration/pages/AdministrationPage";
 import { SettingsPage } from "@modules/settings/pages/SettingsPage";
+import CreateTaskPage from "../../pages/CreateTaskPage";
+import TaskDetailsPage from "../../pages/TaskDetailsPage";
 import { useAuth } from "@features/auth/context/AuthContext";
 
 function RequireAuth() {
@@ -43,6 +45,8 @@ export function AppRouter() {
           <Route path="/workspace" element={<WorkspacePage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/create-task" element={<CreateTaskPage />} />
+          <Route path="/task/:taskId" element={<TaskDetailsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/administration" element={<AdministrationPage />} />
           <Route path="/administration/:moduleKey" element={<AdministrationPage />} />

@@ -1,10 +1,12 @@
 ﻿import React, { useEffect, useState, useRef } from "react";
+import dayjs from "dayjs";
 import {
   Box,
   Card,
   CardContent,
   Typography,
   Button,
+  MenuItem,
   TextField,
   Alert,
   Avatar,
@@ -33,6 +35,10 @@ import NavigateNextIcon from "@mui/icons-material/NavigateNext";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import PersonOutlineIcon from "@mui/icons-material/PersonOutline";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import StatusChip from "../components/StatusChip";
 import PriorityChip from "../components/PriorityChip";
@@ -43,6 +49,7 @@ import { useProject } from "../contexts/ProjectContext";
 
 import {
   addTaskDetailsComment,
+  editTaskDetailsComment,
   deleteTaskDetailsAttachment,
   deleteTaskDetailsComment,
   isTaskDetailsMockMode,
@@ -61,6 +68,20 @@ const fmtDate = (ts) =>
   ts
     ? new Date(ts).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })
     : "Not set";
+
+const getInitials = (name) => {
+  if (!name) return "U";
+  const parts = String(name)
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
+};
 
 
 export default function TaskDetailsPage() {
@@ -89,36 +110,101 @@ export default function TaskDetailsPage() {
   const [openPriorityDialog,  setOpenPriorityDialog]  = useState(false);
   const [openOwnershipDialog, setOpenOwnershipDialog] = useState(false);
   const [openDeleteDialog,    setOpenDeleteDialog]    = useState(false);
+  const [openEditDialog,      setOpenEditDialog]      = useState(false);
   const [selectedAttachment,  setSelectedAttachment]  = useState(null);
   const [openAttachmentModal, setOpenAttachmentModal] = useState(false);
+  const [editForm, setEditForm] = useState({
+    issueActionItem: "",
+    description: "",
+    priority: "Medium",
+    ownerId: "",
+    targetDate: "",
+  });
+
+  const mapPriorityForApi = (priority) => (priority === "Critical" ? "High" : priority);
 
 
-  const loadAll = async () => {
+  const loadAll = async ({ silent = false } = {}) => {
     try {
-      setLoading(true);
-      const pageData = await loadTaskDetailsPageData(taskId, currentUserId);
-      setTask(pageData.task || null);
-      setComments(pageData.comments || []);
-      setAttachments(pageData.attachments || []);
-      setHistory(pageData.history || []);
-      setUsers(pageData.users || []);
+      if (!silent) {
+        setLoading(true);
+      }
+      setError("");
+
+      if (usingMockData) {
+        const pageData = await loadTaskDetailsPageData(taskId, currentUserId);
+        setTask(pageData.task || null);
+        setComments(pageData.comments || []);
+        setAttachments(pageData.attachments || []);
+        setHistory(pageData.history || []);
+        setUsers(pageData.users || []);
+        return;
+      }
+
+      const [{ getTaskById }, { getComments }, { getAttachments }, { getActivity }, { getUsers }] = await Promise.all([
+        import("../services/taskService"),
+        import("../services/taskCommentService"),
+        import("../services/attachmentService"),
+        import("../services/activityService"),
+        import("../services/userServices"),
+      ]);
+
+      const coreTask = await getTaskById(taskId);
+      setTask(coreTask || null);
+
+      const [commentsRes, attachmentsRes, historyRes, usersRes] = await Promise.allSettled([
+        getComments(taskId),
+        getAttachments(taskId),
+        getActivity(taskId),
+        getUsers(),
+      ]);
+
+      setComments(commentsRes.status === "fulfilled" ? (commentsRes.value || []) : []);
+      setAttachments(attachmentsRes.status === "fulfilled" ? (attachmentsRes.value || []) : []);
+      setHistory(historyRes.status === "fulfilled" ? (historyRes.value || []) : []);
+      setUsers(usersRes.status === "fulfilled" ? (usersRes.value || []) : []);
+
+      const partialFailures = [commentsRes, attachmentsRes, historyRes, usersRes].some(
+        (result) => result.status === "rejected"
+      );
+      if (partialFailures) {
+        setSuccess("Task loaded. Some related sections could not be loaded.");
+      }
     } catch (err) {
       setError(`Failed to load task: ${err.message}`);
+      setTask(null);
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   };
 
   useEffect(() => { if (taskId) loadAll(); }, [taskId]);
+
+  useEffect(() => {
+    if (!success) return;
+
+    const timer = window.setTimeout(() => {
+      setSuccess("");
+    }, 3500);
+
+    return () => window.clearTimeout(timer);
+  }, [success]);
 
 
   const handleStatusChange = async (newStatus) => {
     try {
       setOpenStatusDialog(false);
       setSubmitting(true);
-      const updated = await updateTaskDetails(taskId, { ...task, status: newStatus }, currentUserId);
+      setTask((prev) => (prev ? { ...prev, statusId: null, status: newStatus } : prev));
+      const updated = await updateTaskDetails(
+        taskId,
+        { ...task, statusId: null, status: newStatus },
+        currentUserId
+      );
       setTask(updated || { ...task, status: newStatus });
-      if (usingMockData) await loadAll();
+      await loadAll({ silent: true });
       setSuccess(`Status changed to ${newStatus}`);
     } catch (err) { setError(`Failed to update status: ${err.message}`); }
     finally       { setSubmitting(false); }
@@ -128,9 +214,15 @@ export default function TaskDetailsPage() {
     try {
       setOpenPriorityDialog(false);
       setSubmitting(true);
-      const updated = await updateTaskDetails(taskId, { ...task, priority: newPriority }, currentUserId);
-      setTask(updated || { ...task, priority: newPriority });
-      if (usingMockData) await loadAll();
+      const mappedPriority = mapPriorityForApi(newPriority);
+      setTask((prev) => (prev ? { ...prev, priorityId: null, priority: mappedPriority } : prev));
+      const updated = await updateTaskDetails(
+        taskId,
+        { ...task, priorityId: null, priority: mappedPriority },
+        currentUserId
+      );
+      setTask(updated || { ...task, priority: mappedPriority });
+      await loadAll({ silent: true });
       setSuccess(`Priority changed to ${newPriority}`);
     } catch (err) { setError(`Failed to update priority: ${err.message}`); }
     finally       { setSubmitting(false); }
@@ -140,13 +232,57 @@ export default function TaskDetailsPage() {
     try {
       setOpenOwnershipDialog(false);
       setSubmitting(true);
-      const updated = await updateTaskDetails(taskId, { ...task, ownerId: newOwnerId }, currentUserId);
-      setTask(updated || { ...task, ownerId: newOwnerId });
-      if (usingMockData) await loadAll();
-      const ownerName = users.find(u => u.id === newOwnerId)?.fullName || `User ${newOwnerId}`;
+      const normalizedOwnerId = Number(newOwnerId);
+      setTask((prev) => (prev ? { ...prev, ownerId: normalizedOwnerId } : prev));
+      const updated = await updateTaskDetails(taskId, { ...task, ownerId: normalizedOwnerId }, currentUserId);
+      setTask(updated || { ...task, ownerId: normalizedOwnerId });
+      await loadAll({ silent: true });
+      const ownerName = users.find(u => Number(u.id) === normalizedOwnerId)?.fullName || `User ${normalizedOwnerId}`;
       setSuccess(`Task assigned to ${ownerName}`);
     } catch (err) { setError(`Failed to update ownership: ${err.message}`); }
     finally       { setSubmitting(false); }
+  };
+
+  const openEditTaskDialog = () => {
+    setEditForm({
+      issueActionItem: task.issueActionItem || "",
+      description: task.description || "",
+      priority: task.priority || "Medium",
+      ownerId: task.ownerId ?? "",
+      targetDate: task.targetDate ? String(task.targetDate).slice(0, 10) : "",
+    });
+    setOpenEditDialog(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm.issueActionItem.trim()) {
+      setError("Task name is required");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const mappedPriority = mapPriorityForApi(editForm.priority);
+      const payload = {
+        ...task,
+        issueActionItem: editForm.issueActionItem.trim(),
+        description: editForm.description,
+        priorityId: null,
+        priority: mappedPriority,
+        ownerId: editForm.ownerId ? Number(editForm.ownerId) : null,
+        targetDate: editForm.targetDate || null,
+      };
+
+      const updated = await updateTaskDetails(taskId, payload, currentUserId);
+      setTask(updated || { ...task, ...payload });
+      setOpenEditDialog(false);
+      await loadAll({ silent: true });
+      setSuccess("Task updated successfully");
+    } catch (err) {
+      setError(`Failed to update task: ${err.message}`);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleDeleteTask = async () => {
@@ -161,22 +297,62 @@ export default function TaskDetailsPage() {
 
   const handleAddComment = async () => {
     if (!commentText.trim()) { setError("Comment cannot be empty"); return; }
+    const optimisticId = `tmp-${Date.now()}`;
     try {
       setSubmitting(true);
-      await addTaskDetailsComment(taskId, { commentText, commentedBy: currentUserId }, selectedFile, currentUserId);
+      const draft = commentText.trim();
+      const optimisticComment = {
+        id: optimisticId,
+        taskId: Number(taskId),
+        commentText: draft,
+        commentedBy: currentUserId,
+        commentedAt: new Date().toISOString(),
+      };
+      setComments((prev) => [optimisticComment, ...prev]);
+
+      const created = await addTaskDetailsComment(
+        taskId,
+        { commentText: draft, commentedBy: currentUserId },
+        selectedFile,
+        currentUserId
+      );
+      if (created) {
+        setComments((prev) => prev.map((comment) => (comment.id === optimisticComment.id ? created : comment)));
+      }
       setSelectedFile(null);
       setCommentText("");
       setSuccess("Comment added");
-      await loadAll();
-    } catch (err) { setError(`Failed to add comment: ${err.message}`); }
+      await loadAll({ silent: true });
+    } catch (err) {
+      setComments((prev) => prev.filter((comment) => String(comment.id) !== optimisticId));
+      setError(`Failed to add comment: ${err.message}`);
+    }
     finally       { setSubmitting(false); }
+  };
+
+  const handleEditComment = async (id, nextText) => {
+    try {
+      setComments((prev) => prev.map((comment) => (
+        Number(comment.id) === Number(id)
+          ? { ...comment, commentText: nextText, commentedAt: comment.commentedAt || comment.createdAt || new Date().toISOString() }
+          : comment
+      )));
+
+      await editTaskDetailsComment(taskId, id, nextText, currentUserId);
+      setSuccess("Comment updated");
+      await loadAll({ silent: true });
+    } catch (err) {
+      await loadAll({ silent: true });
+      setError(`Failed to update comment: ${err.message}`);
+    }
   };
 
   const handleDeleteComment = async (id) => {
     try {
+      setComments((prev) => prev.filter((comment) => Number(comment.id) !== Number(id)));
       await deleteTaskDetailsComment(taskId, id, currentUserId);
       setSuccess("Comment deleted");
-      await loadAll();
+      await loadAll({ silent: true });
     } catch (err) { setError(`Failed to delete comment: ${err.message}`); }
   };
 
@@ -248,6 +424,25 @@ export default function TaskDetailsPage() {
         </Alert>
       )}
 
+      <Box sx={{ display: "flex", justifyContent: "flex-start" }}>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBackIcon fontSize="small" />}
+          onClick={() => navigate("/tasks")}
+          sx={{
+            borderRadius: "8px",
+            fontSize: "0.78rem",
+            fontWeight: 600,
+            borderColor: "#e5e7eb",
+            color: "#374151",
+            "&:hover": { borderColor: "#2563eb", color: "#2563eb", bgcolor: "#eff6ff" },
+          }}
+        >
+          Back to Tasks
+        </Button>
+      </Box>
+
       {/* â”€â”€ HEADER CARD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <Card sx={cardSx}>
         <CardContent sx={{ p: "20px 24px !important" }}>
@@ -274,19 +469,31 @@ export default function TaskDetailsPage() {
                 {task.issueActionItem}
               </Typography>
             </Box>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<EditIcon fontSize="small" />}
-              onClick={() => navigate(`/task/${taskId}?edit=true`)}
+            <Box
               sx={{
-                borderRadius: "8px", fontSize: "0.8rem", fontWeight: 600,
-                borderColor: "#e5e7eb", color: "#374151", whiteSpace: "nowrap", flexShrink: 0,
-                "&:hover": { borderColor: "#2563eb", color: "#2563eb", bgcolor: "#eff6ff" },
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                px: 1.2,
+                py: 0.9,
+                borderRadius: "10px",
+                bgcolor: "#f8fafc",
+                border: "1px solid #e5e7eb",
+                minWidth: 200,
               }}
             >
-              Edit
-            </Button>
+              <Avatar sx={{ width: 34, height: 34, fontSize: "0.8rem", fontWeight: 700, bgcolor: avatarColor(task.ownerId) }}>
+                {getInitials(getUserName(task.ownerId))}
+              </Avatar>
+              <Box>
+                <Typography sx={{ fontSize: "0.68rem", color: "#9ca3af", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  Assigned Engineer
+                </Typography>
+                <Typography sx={{ fontSize: "0.83rem", color: "#111827", fontWeight: 600 }}>
+                  {getUserName(task.ownerId)}
+                </Typography>
+              </Box>
+            </Box>
           </Box>
 
           {/* Meta strip */}
@@ -299,7 +506,7 @@ export default function TaskDetailsPage() {
                 node: (
                   <Box sx={{ display: "flex", alignItems: "center", gap: 0.6 }}>
                     <Avatar sx={{ width: 20, height: 20, fontSize: "0.6rem", bgcolor: avatarColor(task.ownerId) }}>
-                      {getUserName(task.ownerId)?.[0]}
+                      {getInitials(getUserName(task.ownerId))}
                     </Avatar>
                     <Typography sx={{ fontSize: "0.8rem", fontWeight: 500, color: "#374151" }}>
                       {getUserName(task.ownerId)}
@@ -340,7 +547,7 @@ export default function TaskDetailsPage() {
         <CardContent sx={{ p: "12px 20px !important" }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <Button variant="contained" size="small" startIcon={<EditIcon fontSize="small" />}
-              onClick={() => navigate(`/task/${taskId}?edit=true`)}
+              onClick={openEditTaskDialog}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}>
               Edit Ticket
@@ -351,6 +558,13 @@ export default function TaskDetailsPage() {
                    borderColor: "#E2E8F0", color: "#374151",
                    "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
               Change Status
+            </Button>
+            <Button variant="outlined" size="small"
+              onClick={() => setOpenPriorityDialog(true)}
+              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
+                   borderColor: "#E2E8F0", color: "#374151",
+                   "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
+              Change Priority
             </Button>
             <Button variant="outlined" size="small" startIcon={<PersonOutlineIcon fontSize="small" />}
               onClick={() => setOpenOwnershipDialog(true)}
@@ -415,8 +629,34 @@ export default function TaskDetailsPage() {
                     <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px 32px" }}>
                       {[
                         { label: "Status",      node: <StatusChip status={task.status} /> },
-                        { label: "Priority",    node: <PriorityChip priority={task.priority} /> },
-                        { label: "Owner",       text: getUserName(task.ownerId) },
+                        {
+                          label: "Priority",
+                          node: (
+                            <Tooltip title="Change priority">
+                              <Box sx={{ cursor: "pointer" }} onClick={() => setOpenPriorityDialog(true)}>
+                                <PriorityChip priority={task.priority} />
+                              </Box>
+                            </Tooltip>
+                          ),
+                        },
+                        {
+                          label: "Owner",
+                          node: (
+                            <Tooltip title="Reassign owner">
+                              <Box
+                                sx={{ display: "inline-flex", alignItems: "center", gap: 0.6, cursor: "pointer" }}
+                                onClick={() => setOpenOwnershipDialog(true)}
+                              >
+                                <Avatar sx={{ width: 18, height: 18, fontSize: "0.6rem", bgcolor: avatarColor(task.ownerId) }}>
+                                  {getUserName(task.ownerId)?.[0]}
+                                </Avatar>
+                                <Typography sx={{ fontSize: "0.875rem", fontWeight: 500, color: "#374151" }}>
+                                  {getUserName(task.ownerId)}
+                                </Typography>
+                              </Box>
+                            </Tooltip>
+                          ),
+                        },
                         { label: "Created By",  text: getUserName(task.createdBy) },
                         { label: "Target Date", text: fmtDate(task.targetDate) },
                         { label: "Created At",  text: fmtDate(task.createdAt) },
@@ -496,6 +736,7 @@ export default function TaskDetailsPage() {
                   currentUserId={currentUserId}
                   getUserName={getUserName}
                   onDelete={handleDeleteComment}
+                  onEdit={handleEditComment}
                 />
               </Box>
 
@@ -572,7 +813,7 @@ export default function TaskDetailsPage() {
         <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem", pb: 1 }}>Change Status</DialogTitle>
         <DialogContent>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
-            {["Open", "In Progress", "Closed", "On Hold"].map((s) => (
+            {["To Do", "Open", "In Progress", "Blocked", "Done", "Completed"].map((s) => (
               <Button key={s} fullWidth
                 variant={task.status === s ? "contained" : "outlined"}
                 onClick={() => handleStatusChange(s)} disabled={submitting}
@@ -610,7 +851,7 @@ export default function TaskDetailsPage() {
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
             {users.map((user) => (
               <Button key={user.id} fullWidth
-                variant={task.ownerId === user.id ? "contained" : "outlined"}
+                variant={String(task.ownerId) === String(user.id) ? "contained" : "outlined"}
                 onClick={() => handleOwnershipChange(user.id)} disabled={submitting}
                 sx={{ borderRadius: "8px", textTransform: "none", justifyContent: "flex-start", fontWeight: 500 }}
               >
@@ -624,6 +865,173 @@ export default function TaskDetailsPage() {
             ))}
           </Box>
         </DialogContent>
+      </Dialog>
+
+      <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)}
+        PaperProps={{ sx: { borderRadius: "16px", overflow: "hidden" } }} maxWidth="md" fullWidth>
+        <DialogTitle
+          sx={{
+            fontWeight: 800,
+            fontSize: "1.08rem",
+            pb: 1.2,
+            background: "linear-gradient(110deg, #f8fbff 0%, #f0fdf4 100%)",
+            borderBottom: "1px solid #e5e7eb",
+          }}
+        >
+          Edit Task
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1.2 }}>
+            <TextField
+              label="Task"
+              value={editForm.issueActionItem}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, issueActionItem: e.target.value }))}
+              fullWidth
+              size="small"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#fff",
+                },
+              }}
+            />
+            <TextField
+              label="Description"
+              value={editForm.description}
+              onChange={(e) => setEditForm((prev) => ({ ...prev, description: e.target.value }))}
+              fullWidth
+              multiline
+              minRows={3}
+              size="small"
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "10px",
+                  backgroundColor: "#fff",
+                },
+              }}
+            />
+            <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+              <TextField
+                label="Priority"
+                select
+                value={editForm.priority}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, priority: e.target.value }))}
+                fullWidth
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "10px",
+                    backgroundColor: "#fff",
+                  },
+                }}
+              >
+                {["Low", "Medium", "High", "Critical"].map((priority) => (
+                  <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+                ))}
+              </TextField>
+
+              <TextField
+                label="Owner"
+                select
+                value={editForm.ownerId}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, ownerId: e.target.value }))}
+                fullWidth
+                size="small"
+                sx={{
+                  "& .MuiOutlinedInput-root": {
+                    borderRadius: "10px",
+                    backgroundColor: "#fff",
+                  },
+                }}
+              >
+                <MenuItem value="">Unassigned</MenuItem>
+                {users.map((user) => (
+                  <MenuItem key={user.id} value={user.id}>{user.fullName || `User ${user.id}`}</MenuItem>
+                ))}
+              </TextField>
+            </Box>
+
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Target Date"
+                value={editForm.targetDate ? dayjs(editForm.targetDate) : null}
+                onChange={(nextDate) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    targetDate: nextDate ? nextDate.format("YYYY-MM-DD") : "",
+                  }))
+                }
+                format="DD MMM YYYY"
+                slots={{ openPickerIcon: CalendarMonthIcon }}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    size: "small",
+                    sx: {
+                      "& .MuiOutlinedInput-root": {
+                        borderRadius: "10px",
+                        backgroundColor: "#fff",
+                      },
+                    },
+                  },
+                  popper: {
+                    sx: {
+                      "& .MuiPaper-root": {
+                        borderRadius: "14px",
+                        border: "1px solid #dbeafe",
+                        boxShadow: "0 18px 34px rgba(30, 64, 175, 0.18)",
+                      },
+                    },
+                  },
+                }}
+              />
+            </LocalizationProvider>
+
+            <Box sx={{ display: "flex", gap: 0.8, flexWrap: "wrap" }}>
+              <Button
+                size="small"
+                variant="outlined"
+                sx={{ textTransform: "none", borderRadius: 999 }}
+                onClick={() => setEditForm((prev) => ({ ...prev, targetDate: dayjs().format("YYYY-MM-DD") }))}
+              >
+                Today
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                sx={{ textTransform: "none", borderRadius: 999 }}
+                onClick={() => setEditForm((prev) => ({ ...prev, targetDate: dayjs().add(3, "day").format("YYYY-MM-DD") }))}
+              >
+                +3 days
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                sx={{ textTransform: "none", borderRadius: 999 }}
+                onClick={() => setEditForm((prev) => ({ ...prev, targetDate: dayjs().add(7, "day").format("YYYY-MM-DD") }))}
+              >
+                +1 week
+              </Button>
+            </Box>
+          </Box>
+        </DialogContent>
+        <Box sx={{ p: 2, pt: 0, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+          <Button variant="outlined" onClick={() => setOpenEditDialog(false)}
+            sx={{ borderRadius: "10px", textTransform: "none", px: 2.2, fontWeight: 700 }}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={handleEditSave} disabled={submitting}
+            sx={{
+              borderRadius: "10px",
+              textTransform: "none",
+              px: 2.2,
+              fontWeight: 700,
+              background: "linear-gradient(135deg, #4f46e5 0%, #2563eb 100%)",
+              boxShadow: "0 8px 16px rgba(79, 70, 229, 0.25)",
+            }}>
+            {submitting ? "Saving..." : "Save Changes"}
+          </Button>
+        </Box>
       </Dialog>
 
       <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}

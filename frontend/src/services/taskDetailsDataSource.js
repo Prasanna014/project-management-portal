@@ -1,7 +1,7 @@
 import { USE_TASK_DETAILS_MOCK_MODE } from "../config/devFlags";
 import { createTaskDetailsMockBundle } from "../data/taskDetailsMockData";
 import { getTaskById, updateTask } from "./taskService";
-import { getComments, addComment, deleteComment } from "./taskCommentService";
+import { getComments, addComment, deleteComment, updateComment } from "./taskCommentService";
 import { getAttachments, uploadAttachment, deleteAttachment } from "./attachmentService";
 import { getActivity } from "./activityService";
 import { getUsers } from "./userServices";
@@ -180,6 +180,32 @@ export const deleteTaskDetailsComment = async (taskId, commentId, currentUserId)
     action: "Comment deleted",
     description: `Deleted comment: ${removedComment.commentText.slice(0, 80)}`
   });
+};
+
+export const editTaskDetailsComment = async (taskId, commentId, commentText, currentUserId) => {
+  if (!isTaskDetailsMockMode) {
+    return updateComment(commentId, {
+      commentText,
+      commentedBy: currentUserId,
+    });
+  }
+
+  const store = getMockStore(taskId, currentUserId);
+  const existing = store.comments.find((comment) => Number(comment.id) === Number(commentId));
+  if (!existing) {
+    throw new Error(`Comment not found: ${commentId}`);
+  }
+
+  existing.commentText = commentText;
+  existing.createdAt = existing.createdAt || new Date().toISOString();
+
+  pushHistoryEntry(store, {
+    performedBy: currentUserId,
+    action: "Comment updated",
+    description: `Updated comment: ${commentText.slice(0, 80)}`,
+  });
+
+  return deepClone(existing);
 };
 
 export const deleteTaskDetailsAttachment = async (taskId, attachmentId, currentUserId) => {

@@ -2,6 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import {
   Alert,
+  Avatar,
+  Box,
   Button,
   Card,
   CardContent,
@@ -21,19 +23,26 @@ import {
 import { EmptyState } from "@shared/ui/states/EmptyState";
 import { ErrorState } from "@shared/ui/states/ErrorState";
 import { LoadingState } from "@shared/ui/states/LoadingState";
+import { httpClient } from "@shared/api/httpClient";
 import { fetchTasks } from "@modules/tasks/services/tasksApi";
 import { ConfirmActionDialog } from "@shared/ui/feedback/ConfirmActionDialog";
 import { PageSnackbar, type SnackbarSeverity } from "@shared/ui/feedback/PageSnackbar";
 import { useAuth } from "@features/auth/context/AuthContext";
-import { buildReadPermissionCandidates } from "@shared/auth/permissions";
+import { buildActionPermissionCandidates, buildReadPermissionCandidates } from "@shared/auth/permissions";
 import { fetchProjects } from "@modules/projects/services/projectsApi";
 import { useProjectScope } from "@shared/context/ProjectScopeContext";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 
 type SnackbarState = {
   open: boolean;
   message: string;
   severity: SnackbarSeverity;
+};
+
+type UserDto = {
+  id: number;
+  fullName?: string;
+  email?: string;
 };
 
 const normalizeStatus = (value: string | undefined | null) =>
@@ -49,11 +58,35 @@ const statusAliasMap: Record<string, string[]> = {
   overdue: ["overdue"],
 };
 
+const headerBubblePalette = [
+  { bg: "#eff6ff", fg: "#1e40af" },
+  { bg: "#ecfeff", fg: "#155e75" },
+  { bg: "#f0fdf4", fg: "#166534" },
+  { bg: "#fff7ed", fg: "#9a3412" },
+  { bg: "#fef2f2", fg: "#991b1b" },
+  { bg: "#f5f3ff", fg: "#5b21b6" },
+];
+
+const taskTableHeaders = [
+  "ID",
+  "Task No",
+  "Project",
+  "Issue",
+  "Description",
+  "Status",
+  "Priority",
+  "Assigned To",
+  "Target Date",
+  "Updated",
+];
+
 export function TasksPage() {
+  const navigate = useNavigate();
   const { hasAnyPermission } = useAuth();
   const { selectedProjectId, setSelectedProjectId } = useProjectScope();
   const [searchParams, setSearchParams] = useSearchParams();
   const canRead = hasAnyPermission(buildReadPermissionCandidates("tasks"));
+  const canCreate = hasAnyPermission(buildActionPermissionCandidates("tasks", "create"));
 
   const statusFilter = searchParams.get("status") ?? "";
   const queryProjectId = Number(searchParams.get("projectId"));
@@ -76,6 +109,15 @@ export function TasksPage() {
   const projectsQuery = useQuery({
     queryKey: ["tasks-project-list"],
     queryFn: fetchProjects,
+    enabled: canRead,
+  });
+
+  const usersQuery = useQuery({
+    queryKey: ["tasks-user-list"],
+    queryFn: async () => {
+      const response = await httpClient.get<UserDto[]>("/users");
+      return response.data;
+    },
     enabled: canRead,
   });
 
@@ -103,6 +145,9 @@ export function TasksPage() {
 
   const tasks = tasksQuery.data ?? [];
   const projects = (projectsQuery.data ?? []).filter((project) => project.active);
+  const users = usersQuery.data ?? [];
+  const usersById = new Map(users.map((user) => [user.id, user]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
   const projectOptionExists =
     effectiveProjectId != null && projects.some((project) => project.id === effectiveProjectId);
   const projectSelectorValue = projectOptionExists ? effectiveProjectId : "ALL";
@@ -126,6 +171,28 @@ export function TasksPage() {
     nextParams.delete("projectId");
     setSearchParams(nextParams, { replace: true });
     setSelectedProjectId(null);
+  };
+
+  const formatDate = (value?: string) => {
+    if (!value) {
+      return "-";
+    }
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString();
+  };
+
+  const getOwnerLabel = (ownerId?: number) => {
+    if (!ownerId) {
+      return "Unassigned";
+    }
+
+    const user = usersById.get(ownerId);
+    if (!user) {
+      return `User #${ownerId}`;
+    }
+
+    return user.fullName || user.email || `User #${ownerId}`;
   };
 
   return (
@@ -179,6 +246,11 @@ export function TasksPage() {
               ))}
             </Select>
           </FormControl>
+          {canCreate ? (
+            <Button variant="contained" onClick={() => navigate("/create-task")} sx={{ textTransform: "none", fontWeight: 700 }}>
+              + Create Task
+            </Button>
+          ) : null}
           <Button variant="outlined" onClick={() => setRefreshConfirmOpen(true)}>Refresh</Button>
         </Stack>
       </Stack>
@@ -186,30 +258,88 @@ export function TasksPage() {
         <CardContent>
           <TableContainer>
             <Table size="small">
-              <TableHead>
+              <TableHead
+                sx={{
+                  background: "linear-gradient(90deg, #f8fbff 0%, #f9fffb 100%)",
+                }}
+              >
                 <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>Task No</TableCell>
-                  <TableCell>Issue</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Priority</TableCell>
-                  <TableCell>Target Date</TableCell>
+                  {taskTableHeaders.map((header, index) => {
+                    const palette = headerBubblePalette[index % headerBubblePalette.length];
+                    return (
+                      <TableCell key={header} sx={{ borderBottomColor: "#e2e8f0", py: 1.1 }}>
+                        <Box
+                          component="span"
+                          sx={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            px: 1.15,
+                            py: 0.55,
+                            borderRadius: 999,
+                            bgcolor: palette.bg,
+                            color: palette.fg,
+                            border: "1px solid rgba(15, 23, 42, 0.08)",
+                            boxShadow: "0 1px 0 rgba(15,23,42,0.03)",
+                            fontWeight: 700,
+                            fontSize: "0.76rem",
+                            letterSpacing: "0.02em",
+                            textTransform: "uppercase",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {header}
+                        </Box>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {filteredTasks.map((task) => (
-                  <TableRow key={task.id}>
+                  <TableRow
+                    key={task.id}
+                    hover
+                    onClick={() => navigate(`/task/${task.id}`)}
+                    sx={{
+                      cursor: "pointer",
+                      transition: "background-color 120ms ease",
+                      "&:hover": { backgroundColor: "#f8fbff" },
+                    }}
+                  >
                     <TableCell>{task.id}</TableCell>
-                    <TableCell>{task.taskNo ?? "-"}</TableCell>
+                    <TableCell>
+                      <Typography sx={{ color: "#1d4ed8", fontWeight: 700 }}>
+                        {task.taskNo ?? "-"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {task.projectId ? (
+                        <Chip
+                          size="small"
+                          label={projectsById.get(task.projectId)?.projectCode || `Project #${task.projectId}`}
+                          sx={{ bgcolor: "#eff6ff", color: "#1d4ed8", fontWeight: 700 }}
+                        />
+                      ) : "-"}
+                    </TableCell>
                     <TableCell>{task.issueActionItem ?? "-"}</TableCell>
+                    <TableCell>{task.description ?? "-"}</TableCell>
                     <TableCell>{task.status ?? "-"}</TableCell>
                     <TableCell>{task.priority ?? "-"}</TableCell>
-                    <TableCell>{task.targetDate ?? "-"}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: "0.72rem", bgcolor: "#c7d2fe", color: "#312e81" }}>
+                          {getOwnerLabel(task.ownerId).charAt(0).toUpperCase()}
+                        </Avatar>
+                        <Typography variant="body2">{getOwnerLabel(task.ownerId)}</Typography>
+                      </Box>
+                    </TableCell>
+                    <TableCell>{formatDate(task.targetDate)}</TableCell>
+                    <TableCell>{formatDate(task.updatedAt)}</TableCell>
                   </TableRow>
                 ))}
                 {filteredTasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={10}>
                       <Typography variant="body2" color="text.secondary">
                         No tasks match the selected project/status filters.
                       </Typography>

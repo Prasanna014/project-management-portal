@@ -25,6 +25,17 @@ export const addComment = async (taskId, comment) => {
   }
 };
 
+/* ================= UPDATE COMMENT ================= */
+export const updateComment = async (commentId, comment) => {
+  try {
+    const response = await API.put(`/comments/${commentId}`, comment);
+    return response.data;
+  } catch (error) {
+    console.error(`Error updating comment ${commentId}:`, error);
+    throw error;
+  }
+};
+
 /* ================= DELETE COMMENT ================= */
 export const deleteComment = async (commentId) => {
   try {
