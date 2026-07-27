@@ -18,25 +18,25 @@ public class DashboardController {
 
     /* ================= SUMMARY ================= */
     @GetMapping("/summary")
-    public ResponseEntity<DashboardSummaryDto> getSummary() {
-        return ResponseEntity.ok(service.getDashboardSummary());
+    public ResponseEntity<DashboardSummaryDto> getSummary(@RequestParam(required = false) Long projectId) {
+        return ResponseEntity.ok(service.getDashboardSummary(projectId));
     }
 
     /* ================= STATUS ================= */
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Long>> getStatus() {
-        return ResponseEntity.ok(service.getStatusSummary());
+    public ResponseEntity<Map<String, Long>> getStatus(@RequestParam(required = false) Long projectId) {
+        return ResponseEntity.ok(service.getStatusSummary(projectId));
     }
 
     /* ================= PRIORITY ================= */
     @GetMapping("/priority")
-    public ResponseEntity<Map<String, Long>> getPriority() {
-        return ResponseEntity.ok(service.getPrioritySummary());
+    public ResponseEntity<Map<String, Long>> getPriority(@RequestParam(required = false) Long projectId) {
+        return ResponseEntity.ok(service.getPrioritySummary(projectId));
     }
 
     /* ================= WORKLOAD ================= */
     @GetMapping("/workload")
-    public ResponseEntity<Map<Long, Long>> getWorkload() {
-        return ResponseEntity.ok(service.getOwnerWorkload());
+    public ResponseEntity<Map<Long, Long>> getWorkload(@RequestParam(required = false) Long projectId) {
+        return ResponseEntity.ok(service.getOwnerWorkload(projectId));
     }
 }

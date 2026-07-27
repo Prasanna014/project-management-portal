@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Alert, Button, Card, CardContent, Grid, Stack, Typography } from "@mui/material";
@@ -74,15 +73,17 @@ export function WorkspacePage() {
     return <EmptyState title="Workspace is empty" description="No project or task data is available yet." />;
   }
 
-  const activeProjects = useMemo(() => projects.filter((project) => project.active).length, [projects]);
-  const openTasks = useMemo(
-    () => tasks.filter((task) => (task.status ?? "").toLowerCase().includes("open") || (task.status ?? "").toLowerCase().includes("todo")).length,
-    [tasks]
-  );
-  const completedTasks = useMemo(
-    () => tasks.filter((task) => (task.status ?? "").toLowerCase().includes("complete") || (task.status ?? "").toLowerCase().includes("done")).length,
-    [tasks]
-  );
+  const activeProjects = projects.filter((project) => project.active).length;
+  const openTasks = tasks.filter(
+    (task) =>
+      (task.status ?? "").toLowerCase().includes("open") ||
+      (task.status ?? "").toLowerCase().includes("todo")
+  ).length;
+  const completedTasks = tasks.filter(
+    (task) =>
+      (task.status ?? "").toLowerCase().includes("complete") ||
+      (task.status ?? "").toLowerCase().includes("done")
+  ).length;
 
   return (
     <Stack spacing={2}>

@@ -1,5 +1,9 @@
 import { httpClient } from "@shared/api/httpClient";
 
+type DashboardQueryOptions = {
+  projectId?: number | null;
+};
+
 export type DashboardSummary = {
   totalTasks: number;
   openTasks: number;
@@ -14,17 +18,23 @@ export type DashboardSummary = {
   lowPriorityTasks: number;
 };
 
-export async function fetchDashboardSummary(): Promise<DashboardSummary> {
-  const response = await httpClient.get<DashboardSummary>("/dashboard/summary");
+export async function fetchDashboardSummary(options: DashboardQueryOptions = {}): Promise<DashboardSummary> {
+  const response = await httpClient.get<DashboardSummary>("/dashboard/summary", {
+    params: options.projectId ? { projectId: options.projectId } : undefined,
+  });
   return response.data;
 }
 
-export async function fetchDashboardStatusBreakdown(): Promise<Record<string, number>> {
-  const response = await httpClient.get<Record<string, number>>("/dashboard/status");
+export async function fetchDashboardStatusBreakdown(options: DashboardQueryOptions = {}): Promise<Record<string, number>> {
+  const response = await httpClient.get<Record<string, number>>("/dashboard/status", {
+    params: options.projectId ? { projectId: options.projectId } : undefined,
+  });
   return response.data;
 }
 
-export async function fetchDashboardPriorityBreakdown(): Promise<Record<string, number>> {
-  const response = await httpClient.get<Record<string, number>>("/dashboard/priority");
+export async function fetchDashboardPriorityBreakdown(options: DashboardQueryOptions = {}): Promise<Record<string, number>> {
+  const response = await httpClient.get<Record<string, number>>("/dashboard/priority", {
+    params: options.projectId ? { projectId: options.projectId } : undefined,
+  });
   return response.data;
 }

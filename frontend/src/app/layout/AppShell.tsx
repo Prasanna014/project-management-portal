@@ -6,25 +6,56 @@ import {
   Chip,
   Collapse,
   Drawer,
+  FormControl,
+  IconButton,
   List,
   ListItemButton,
   ListItemText,
   ListSubheader,
+  MenuItem,
+  Select,
   Toolbar,
   Typography,
 } from "@mui/material";
+import {
+  AdminPanelSettingsRounded,
+  ChevronLeft,
+  ChevronRight,
+  DashboardRounded,
+  DescriptionRounded,
+  FolderRounded,
+  MenuRounded,
+  SettingsRounded,
+  TaskRounded,
+  ViewKanbanRounded,
+} from "@mui/icons-material";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { administrationNavigation, mainNavigation } from "@app/router/navigation";
 import { useAuth } from "@features/auth/context/AuthContext";
 import { buildReadPermissionCandidates } from "@shared/auth/permissions";
+import type { SvgIconComponent } from "@mui/icons-material";
 
-const drawerWidth = 260;
+const drawerWidthExpanded = 260;
+const drawerWidthCollapsed = 88;
 
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasAnyPermission } = useAuth();
   const [adminExpanded, setAdminExpanded] = useState(true);
+  const [drawerCollapsed, setDrawerCollapsed] = useState(false);
+
+  const navIconMap: Record<string, SvgIconComponent> = {
+    Dashboard: DashboardRounded,
+    Workspace: ViewKanbanRounded,
+    Projects: FolderRounded,
+    Tasks: TaskRounded,
+    Reports: DescriptionRounded,
+    Settings: SettingsRounded,
+  };
+
+  const isMainItemSelected = (to: string) =>
+    to === "/" ? location.pathname === "/" : location.pathname.startsWith(to);
 
   const sectionPermissionKey: Record<string, string> = {
     Dashboard: "dashboard",
@@ -58,10 +89,27 @@ export function AppShell() {
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
-      <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+      <AppBar
+        position="fixed"
+        sx={{
+          zIndex: (theme) => theme.zIndex.drawer + 1,
+          background: "linear-gradient(90deg, #2B3A67 0%, #3F51B5 45%, #274060 100%)",
+        }}
+      >
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>SupportFlow Enterprise UI</Typography>
-          <Typography variant="body2" sx={{ mr: 2 }}>{user?.email ?? "Unknown user"}</Typography>
+          <IconButton
+            color="inherit"
+            onClick={() => setDrawerCollapsed((value) => !value)}
+            sx={{ mr: 1 }}
+          >
+            {drawerCollapsed ? <MenuRounded /> : <ChevronLeft />}
+          </IconButton>
+          <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 600 }}>
+            SupportFlow Enterprise UI
+          </Typography>
+          <Typography variant="body2" sx={{ mr: 2 }}>
+            {user?.email ?? "Unknown user"}
+          </Typography>
           <Button
             color="inherit"
             onClick={() => {
@@ -77,22 +125,68 @@ export function AppShell() {
       <Drawer
         variant="permanent"
         sx={{
-          width: drawerWidth,
+          width: drawerCollapsed ? drawerWidthCollapsed : drawerWidthExpanded,
           flexShrink: 0,
           "& .MuiDrawer-paper": {
-            width: drawerWidth,
+            width: drawerCollapsed ? drawerWidthCollapsed : drawerWidthExpanded,
             boxSizing: "border-box",
+            background: "linear-gradient(180deg, #F8FAFF 0%, #EEF2FF 100%)",
+            borderRight: "1px solid #DCE3F4",
+            transition: "width 0.2s ease-in-out",
           },
         }}
       >
         <Toolbar />
-        <List subheader={<ListSubheader>Navigation</ListSubheader>}>
+        <List
+          subheader={
+            <ListSubheader
+              sx={{
+                bgcolor: "transparent",
+                color: "#6B7280",
+                fontWeight: 700,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {drawerCollapsed ? "Nav" : "Navigation"}
+            </ListSubheader>
+          }
+        >
           {mainNavigation
             .filter((item) => item.label !== "Administration")
             .filter((item) => hasSectionReadAccess(item.label))
             .map((item) => (
-              <ListItemButton key={item.to} component={NavLink} to={item.to}>
-                <ListItemText primary={item.label} />
+              <ListItemButton
+                key={item.to}
+                component={NavLink}
+                to={item.to}
+                selected={isMainItemSelected(item.to)}
+                sx={{
+                  mx: 1,
+                  mb: 0.6,
+                  borderRadius: 2,
+                  minHeight: 44,
+                  justifyContent: drawerCollapsed ? "center" : "flex-start",
+                  gap: drawerCollapsed ? 0 : 1.2,
+                  "&.Mui-selected": {
+                    bgcolor: "#DDE8FF",
+                    color: "#1E3A8A",
+                    boxShadow: "inset 3px 0 0 #3B82F6",
+                  },
+                }}
+              >
+                {(() => {
+                  const Icon = navIconMap[item.label] ?? DashboardRounded;
+                  return (
+                    <Icon
+                      fontSize="small"
+                      style={{
+                        color: isMainItemSelected(item.to) ? "#1E3A8A" : "#60708F",
+                      }}
+                    />
+                  );
+                })()}
+                {!drawerCollapsed ? <ListItemText primary={item.label} /> : null}
               </ListItemButton>
             ))}
 
@@ -100,19 +194,48 @@ export function AppShell() {
             <ListItemButton
               selected={location.pathname.startsWith("/administration")}
               onClick={() => setAdminExpanded((value) => !value)}
+              sx={{
+                mx: 1,
+                mb: 0.5,
+                borderRadius: 2,
+                minHeight: 44,
+                justifyContent: drawerCollapsed ? "center" : "space-between",
+                "&.Mui-selected": {
+                  bgcolor: "#DDE8FF",
+                  color: "#1E3A8A",
+                },
+              }}
             >
-              <ListItemText primary="Administration" />
+              <AdminPanelSettingsRounded
+                fontSize="small"
+                style={{
+                  color: location.pathname.startsWith("/administration") ? "#1E3A8A" : "#60708F",
+                }}
+              />
+              {!drawerCollapsed ? <ListItemText primary="Administration" /> : null}
+              {!drawerCollapsed ? (adminExpanded ? <ChevronLeft fontSize="small" /> : <ChevronRight fontSize="small" />) : null}
             </ListItemButton>
           ) : null}
 
-          <Collapse in={adminExpanded}>
+          <Collapse in={adminExpanded && !drawerCollapsed}>
             <List disablePadding>
               {availableAdminModules.map((item) => (
                 <ListItemButton
                   key={item.key}
                   component={NavLink}
                   to={item.to}
-                  sx={{ pl: 4 }}
+                  selected={location.pathname.startsWith(item.to)}
+                  sx={{
+                    pl: 4,
+                    mx: 1,
+                    mb: 0.4,
+                    borderRadius: 2,
+                    minHeight: 40,
+                    "&.Mui-selected": {
+                      bgcolor: "#DDE8FF",
+                      color: "#1E3A8A",
+                    },
+                  }}
                 >
                   <ListItemText primary={item.label} />
                 </ListItemButton>

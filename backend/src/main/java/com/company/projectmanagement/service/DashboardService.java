@@ -8,7 +8,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -16,57 +18,96 @@ public class DashboardService {
 
     private final TaskRepository taskRepository;
 
-    /* ================= SUMMARY ================= */
-    public DashboardSummaryDto getDashboardSummary() {
+    private List<com.company.projectmanagement.entity.Task> loadTasks(Long projectId) {
+        return projectId == null ? taskRepository.findAll() : taskRepository.findByProjectId(projectId);
+    }
 
-        long total = taskRepository.count();
+    private String resolveStatus(com.company.projectmanagement.entity.Task task) {
+        if (task.getTaskStatus() != null && task.getTaskStatus().getStatusName() != null) {
+            return task.getTaskStatus().getStatusName();
+        }
+        return task.getStatus();
+    }
+
+    private String resolvePriority(com.company.projectmanagement.entity.Task task) {
+        if (task.getTaskPriority() != null && task.getTaskPriority().getPriorityName() != null) {
+            return task.getTaskPriority().getPriorityName();
+        }
+        return task.getPriority();
+    }
+
+    private long countByStatus(List<com.company.projectmanagement.entity.Task> tasks, String status) {
+        return tasks.stream()
+                .map(this::resolveStatus)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> value.equalsIgnoreCase(status))
+                .count();
+    }
+
+    private long countByPriority(List<com.company.projectmanagement.entity.Task> tasks, String priority) {
+        return tasks.stream()
+                .map(this::resolvePriority)
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(value -> value.equalsIgnoreCase(priority))
+                .count();
+    }
+
+    /* ================= SUMMARY ================= */
+    public DashboardSummaryDto getDashboardSummary(Long projectId) {
+        List<com.company.projectmanagement.entity.Task> tasks = loadTasks(projectId);
+        long total = tasks.size();
 
         return DashboardSummaryDto.builder()
                 .totalTasks(total)
-                .openTasks((long) taskRepository.findByStatus("Open").size())
-                .waitingTasks((long) taskRepository.findByStatus("Waiting").size())
-                .inProgressTasks((long) taskRepository.findByStatus("In Progress").size())
-                .blockedTasks((long) taskRepository.findByStatus("Blocked").size())
-                .completedTasks((long) taskRepository.findByStatus("Completed").size())
-                .scheduledTasks((long) taskRepository.findByStatus("Scheduled").size())
-                .overdueTasks((long) taskRepository.findByStatus("Overdue").size())
-                .highPriorityTasks((long) taskRepository.findByPriority("High").size())
-                .mediumPriorityTasks((long) taskRepository.findByPriority("Medium").size())
-                .lowPriorityTasks((long) taskRepository.findByPriority("Low").size())
+                .openTasks(countByStatus(tasks, "Open"))
+                .waitingTasks(countByStatus(tasks, "Waiting"))
+                .inProgressTasks(countByStatus(tasks, "In Progress"))
+                .blockedTasks(countByStatus(tasks, "Blocked"))
+                .completedTasks(countByStatus(tasks, "Completed"))
+                .scheduledTasks(countByStatus(tasks, "Scheduled"))
+                .overdueTasks(countByStatus(tasks, "Overdue"))
+                .highPriorityTasks(countByPriority(tasks, "High"))
+                .mediumPriorityTasks(countByPriority(tasks, "Medium"))
+                .lowPriorityTasks(countByPriority(tasks, "Low"))
                 .build();
     }
 
     /* ================= STATUS SUMMARY ================= */
-    public Map<String, Long> getStatusSummary() {
+    public Map<String, Long> getStatusSummary(Long projectId) {
+        List<com.company.projectmanagement.entity.Task> tasks = loadTasks(projectId);
         Map<String, Long> map = new HashMap<>();
 
-        map.put("Open", (long) taskRepository.findByStatus("Open").size());
-        map.put("Waiting", (long) taskRepository.findByStatus("Waiting").size());
-        map.put("In Progress", (long) taskRepository.findByStatus("In Progress").size());
-        map.put("Blocked", (long) taskRepository.findByStatus("Blocked").size());
-        map.put("Completed", (long) taskRepository.findByStatus("Completed").size());
-        map.put("Scheduled", (long) taskRepository.findByStatus("Scheduled").size());
-        map.put("Overdue", (long) taskRepository.findByStatus("Overdue").size());
+        map.put("Open", countByStatus(tasks, "Open"));
+        map.put("Waiting", countByStatus(tasks, "Waiting"));
+        map.put("In Progress", countByStatus(tasks, "In Progress"));
+        map.put("Blocked", countByStatus(tasks, "Blocked"));
+        map.put("Completed", countByStatus(tasks, "Completed"));
+        map.put("Scheduled", countByStatus(tasks, "Scheduled"));
+        map.put("Overdue", countByStatus(tasks, "Overdue"));
 
         return map;
     }
 
     /* ================= PRIORITY SUMMARY ================= */
-    public Map<String, Long> getPrioritySummary() {
+    public Map<String, Long> getPrioritySummary(Long projectId) {
+        List<com.company.projectmanagement.entity.Task> tasks = loadTasks(projectId);
         Map<String, Long> map = new HashMap<>();
 
-        map.put("High", (long) taskRepository.findByPriority("High").size());
-        map.put("Medium", (long) taskRepository.findByPriority("Medium").size());
-        map.put("Low", (long) taskRepository.findByPriority("Low").size());
+        map.put("High", countByPriority(tasks, "High"));
+        map.put("Medium", countByPriority(tasks, "Medium"));
+        map.put("Low", countByPriority(tasks, "Low"));
 
         return map;
     }
 
     /* ================= OWNER WORKLOAD ================= */
-    public Map<Long, Long> getOwnerWorkload() {
+    public Map<Long, Long> getOwnerWorkload(Long projectId) {
         Map<Long, Long> map = new HashMap<>();
 
-        taskRepository.findAll().forEach(task -> {
+        var tasks = projectId == null ? taskRepository.findAll() : taskRepository.findByProjectId(projectId);
+        tasks.forEach(task -> {
             Long ownerId = task.getOwnerId();
             map.put(ownerId, map.getOrDefault(ownerId, 0L) + 1L);
         });
