@@ -33,6 +33,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import SendIcon from "@mui/icons-material/Send";
 import SidebarPanel from "../components/SidebarPanel";
+import "./TaskDetailsPage.css";
 
 import { getTaskById, updateTask } from "../services/taskService";
 import { getComments, addComment, deleteComment } from "../services/taskCommentService";
@@ -296,7 +297,7 @@ export default function TaskDetailsPage() {
   if (!task) return <Typography>Task not found</Typography>;
 
   return (
-    <Box sx={{ minHeight: "100vh", backgroundColor: "#fff" }}>
+    <Box className="task-details-container" sx={{ minHeight: "100vh", backgroundColor: "#fff" }}>
       {/* ✅ ALERTS */}
       {error && <Alert severity="error" sx={{ m: 2 }}>{error}</Alert>}
       {success && <Alert severity="success" sx={{ m: 2 }}>{success}</Alert>}

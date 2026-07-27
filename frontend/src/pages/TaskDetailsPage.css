@@ -1,0 +1,173 @@
+/* ============================================
+   TaskDetailsPage.css - Scoped Styling
+   Applies only to TaskDetailsPage and its components
+   ============================================ */
+
+/* Link styling within TaskDetailsPage */
+.task-details-container a {
+    text-decoration: none;
+    color: #464feb;
+}
+
+.task-details-container a:hover {
+    text-decoration: underline;
+}
+
+/* Table styling for History/Activity Timeline */
+.task-details-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.task-details-container tr th,
+.task-details-container tr td {
+    border: 1px solid #e6e6e6;
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.task-details-container tr th {
+    background-color: #f5f5f5;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.task-details-container tr td {
+    font-size: 0.9rem;
+    color: #555;
+}
+
+.task-details-container tr:nth-child(even) td {
+    background-color: #fafafa;
+}
+
+.task-details-container tr:hover td {
+    background-color: #f0f0f0;
+    transition: background-color 0.2s ease;
+}
+
+/* Task Details specific components */
+.task-details-header {
+    border-bottom: 1px solid #e0e0e0;
+    padding: 16px;
+}
+
+.task-details-info-row {
+    border-bottom: 1px solid #e0e0e0;
+    padding: 16px;
+    background-color: #f9f9f9;
+}
+
+.task-details-tabs {
+    border-bottom: 1px solid #e0e0e0;
+    margin-bottom: 16px;
+}
+
+.task-details-content {
+    margin-top: 16px;
+}
+
+.task-details-comment-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 3px solid #2563eb;
+}
+
+.task-details-attachment-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    background-color: #f9f9f9;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.task-details-attachment-item:hover {
+    background-color: #f0f0f0;
+    border-color: #1976d2;
+}
+
+.task-details-history-item {
+    padding: 12px;
+    margin-bottom: 12px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+}
+
+.task-details-sidebar-container {
+    background-color: #2563eb;
+    color: #fff;
+    padding: 20px;
+    border-left: 1px solid #e0e0e0;
+}
+
+/* Breadcrumb styling */
+.task-details-breadcrumb {
+    margin-bottom: 8px;
+    font-size: 0.85rem;
+}
+
+.task-details-title {
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.task-details-subtitle {
+    font-size: 1rem;
+    color: #333;
+    font-weight: 500;
+}
+
+/* Dialog styling */
+.task-details-dialog-content {
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+/* Activity Timeline */
+.task-details-activity-timeline {
+    position: relative;
+}
+
+.task-details-timeline-item {
+    position: relative;
+    padding: 16px;
+    padding-left: 32px;
+    margin-bottom: 16px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    border-left: 3px solid #2563eb;
+}
+
+.task-details-timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -8px;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    background-color: #2563eb;
+    border-radius: 50%;
+    border: 2px solid #fff;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .task-details-container tr th,
+    .task-details-container tr td {
+        padding: 6px 8px;
+        font-size: 0.85rem;
+    }
+
+    .task-details-content {
+        margin-top: 12px;
+    }
+}
