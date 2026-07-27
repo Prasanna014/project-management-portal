@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -41,8 +42,30 @@ public class DashboardService {
                 .map(this::resolveStatus)
                 .filter(Objects::nonNull)
                 .map(String::trim)
-                .filter(value -> value.equalsIgnoreCase(status))
+                .filter(value -> statusMatches(value, status))
                 .count();
+    }
+
+    private String normalizeStatus(String value) {
+        return value == null
+                ? ""
+                : value.trim().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    private boolean statusMatches(String actualStatus, String requestedStatus) {
+        String actual = normalizeStatus(actualStatus);
+        String requested = normalizeStatus(requestedStatus);
+
+        return switch (requested) {
+            case "open" -> actual.equals("open") || actual.equals("to do") || actual.equals("todo");
+            case "completed" -> actual.equals("completed") || actual.equals("done");
+            case "in progress" -> actual.equals("in progress");
+            case "waiting" -> actual.equals("waiting");
+            case "blocked" -> actual.equals("blocked");
+            case "scheduled" -> actual.equals("scheduled");
+            case "overdue" -> actual.equals("overdue");
+            default -> actual.equals(requested);
+        };
     }
 
     private long countByPriority(List<com.company.projectmanagement.entity.Task> tasks, String priority) {
