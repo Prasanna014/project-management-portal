@@ -127,6 +127,7 @@ export default function SearchPage() {
           Search History
         </Button>
       </SidebarPanel>
+    </Box>
   );
 }
 

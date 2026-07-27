@@ -515,8 +515,6 @@ export default function CreateTaskPage() {
     </Box>
   );
 }
-
-      {/* Error Messages */}
       {loadingError && (
         <Alert severity="error" sx={{ mb: 2 }}>
           {loadingError}
