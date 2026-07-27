@@ -362,9 +362,11 @@ export default function TaskDetailsPage() {
 
       {/* ✅ MAIN LAYOUT - 65/35 WITH COLLAPSIBLE SIDEBAR */}
       <Box sx={{ maxWidth: "1800px", mx: "auto", display: "flex", minHeight: "600px", position: "relative", flex: 1 }}>
-        {/* LEFT CONTENT AREA - 65% */}
-        <Box sx={{ flex: 1, p: 2.5, borderRight: "1px solid #e0e0e0", overflowY: "auto" }}>
+        {/* LEFT CONTENT AREA - 65% (Column Layout) */}
+        <Box sx={{ flex: 1, p: 2.5, borderRight: "1px solid #e0e0e0", overflowY: "auto", display: "flex", flexDirection: "column", gap: 2.5 }}>
           
+          {/* TABS SECTION */}
+          <Box>
           {/* TABS */}
           <Box sx={{ mb: 2, borderBottom: "1px solid #e0e0e0" }}>
             <Tabs
@@ -382,7 +384,6 @@ export default function TaskDetailsPage() {
               }}
             >
               <Tab label="Overview" />
-              <Tab label={`Comments (${comments.length})`} />
               <Tab label={`Attachments (${attachments.length})`} />
               <Tab label={`History (${history.length})`} />
               <Tab label="Related Tests" />
@@ -470,53 +471,10 @@ export default function TaskDetailsPage() {
               </Box>
             )}
 
-            {/* COMMENTS TAB */}
-            {activeTab === 1 && (
-              <Box>
-                <Box sx={{ mb: 2 }}>
-                  {comments.length > 0 ? (
-                    <Box>
-                      {comments.map((comment) => (
-                        <Box key={comment.id} sx={{ mb: 2, pb: 2, borderBottom: "1px solid #eee" }}>
-                          <Box sx={{ display: "flex", gap: 1.5 }}>
-                            <Avatar sx={{ bgcolor: "#1976d2", width: 28, height: 28, fontSize: "0.7rem", flexShrink: 0 }}>
-                              {getUserName(comment.commentedBy)[0]}
-                            </Avatar>
-                            <Box sx={{ flex: 1 }}>
-                              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 0.3 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "0.9rem" }}>
-                                  {getUserName(comment.commentedBy)}
-                                </Typography>
-                                <Typography variant="caption" color="textSecondary" sx={{ fontSize: "0.75rem" }}>
-                                  {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "Just now"}
-                                </Typography>
-                              </Box>
-                              <Typography sx={{ fontSize: "0.9rem", color: "#424242", lineHeight: 1.5 }}>
-                                {comment.commentText}
-                              </Typography>
-                              {currentUserId === comment.commentedBy && (
-                                <Box sx={{ display: "flex", gap: 1, mt: 0.8 }}>
-                                  <Button size="small" color="error" onClick={() => handleDeleteComment(comment.id)} sx={{ fontSize: "0.8rem" }}>
-                                    Delete
-                                  </Button>
-                                </Box>
-                              )}
-                            </Box>
-                          </Box>
-                        </Box>
-                      ))}
-                    </Box>
-                  ) : (
-                    <Typography color="textSecondary" sx={{ textAlign: "center", py: 3, fontSize: "0.9rem" }}>
-                      No comments yet
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            )}
+            {/* COMMENTS TAB - REMOVED, NOW AT BOTTOM */}
 
             {/* ATTACHMENTS TAB */}
-            {activeTab === 2 && (
+            {activeTab === 1 && (
               <Box>
                 {attachments.length > 0 ? (
                   <Box>
@@ -587,7 +545,7 @@ export default function TaskDetailsPage() {
             )}
 
             {/* HISTORY TAB */}
-            {activeTab === 3 && (
+            {activeTab === 2 && (
               <Box>
                 {history.length > 0 ? (
                   <Box>
@@ -614,7 +572,7 @@ export default function TaskDetailsPage() {
             )}
 
             {/* RELATED TESTS TAB */}
-            {activeTab === 4 && (
+            {activeTab === 3 && (
               <Box sx={{ textAlign: "center", py: 3 }}>
                 <Typography color="textSecondary" sx={{ fontSize: "0.9rem" }}>
                   No related tests
@@ -622,6 +580,104 @@ export default function TaskDetailsPage() {
               </Box>
             )}
           </Box>
+          </Box>
+
+          {/* ✅ COMMENTS SECTION CARD */}
+          <Card sx={{ boxShadow: "0 1px 3px rgba(0,0,0,0.08)" }}>
+            <CardContent sx={{ display: "flex", flexDirection: "column", height: "400px", p: 0 }}>
+              {/* COMMENTS HEADER */}
+              <Box sx={{ p: 2, borderBottom: "1px solid #e0e0e0" }}>
+                <Typography variant="h6" sx={{ fontWeight: 600, fontSize: "1rem" }}>
+                  Comments ({comments.length})
+                </Typography>
+              </Box>
+
+              {/* COMMENTS LIST - SCROLLABLE */}
+              <Box sx={{ flex: 1, overflowY: "auto", p: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
+                {comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <Box key={comment.id} sx={{ pb: 1.5 }}>
+                      <Box sx={{ display: "flex", gap: 1, mb: 0.5 }}>
+                        <Avatar sx={{ bgcolor: "#1976d2", width: 28, height: 28, fontSize: "0.7rem", flexShrink: 0 }}>
+                          {getUserName(comment.commentedBy)[0]}
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 600, fontSize: "0.85rem" }}>
+                              {getUserName(comment.commentedBy)}
+                            </Typography>
+                            <Typography variant="caption" color="textSecondary" sx={{ fontSize: "0.75rem", whiteSpace: "nowrap" }}>
+                              {comment.createdAt ? new Date(comment.createdAt).toLocaleString() : "Just now"}
+                            </Typography>
+                          </Box>
+                          <Typography sx={{ fontSize: "0.85rem", color: "#424242", lineHeight: 1.4, mt: 0.3 }}>
+                            {comment.commentText}
+                          </Typography>
+                          {currentUserId === comment.commentedBy && (
+                            <Button
+                              size="small"
+                              color="error"
+                              onClick={() => handleDeleteComment(comment.id)}
+                              sx={{ fontSize: "0.75rem", mt: 0.5 }}
+                            >
+                              Delete
+                            </Button>
+                          )}
+                        </Box>
+                      </Box>
+                    </Box>
+                  ))
+                ) : (
+                  <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
+                    <Typography color="textSecondary" sx={{ fontSize: "0.9rem" }}>
+                      No comments yet
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+
+              {/* COMMENT INPUT - STICKY AT BOTTOM */}
+              <Box sx={{ borderTop: "1px solid #e0e0e0", p: 2, backgroundColor: "#fafafa" }}>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={2}
+                    placeholder="Add a comment..."
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    size="small"
+                    sx={{
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "#fff",
+                        borderRadius: "6px"
+                      }
+                    }}
+                  />
+                </Box>
+                {commentText.trim() && (
+                  <Box sx={{ mt: 1, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => setCommentText("")}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      endIcon={<SendIcon fontSize="small" />}
+                      onClick={handleAddComment}
+                      disabled={submitting}
+                    >
+                      Send
+                    </Button>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
         </Box>
 
         {/* RIGHT SIDEBAR - COLLAPSIBLE */}
