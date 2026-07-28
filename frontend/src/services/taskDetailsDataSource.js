@@ -8,6 +8,16 @@ import { getUsers } from "./userServices";
 
 const mockStoreByTaskId = new Map();
 
+const SESSION_KEY = (id) => `td_mock_${id}`;
+
+// Persist mock store to sessionStorage so edits survive page refresh
+const saveMockStore = (taskId) => {
+  try {
+    const store = mockStoreByTaskId.get(String(taskId));
+    if (store) sessionStorage.setItem(SESSION_KEY(String(taskId)), JSON.stringify(store));
+  } catch { /* sessionStorage unavailable or full — silently ignore */ }
+};
+
 const deepClone = (value) => {
   if (typeof structuredClone === "function") {
     return structuredClone(value);
@@ -18,7 +28,15 @@ const deepClone = (value) => {
 const getMockStore = (taskId, currentUserId) => {
   const key = String(taskId);
   if (!mockStoreByTaskId.has(key)) {
-    mockStoreByTaskId.set(key, createTaskDetailsMockBundle(taskId, currentUserId));
+    try {
+      const stored = sessionStorage.getItem(SESSION_KEY(key));
+      mockStoreByTaskId.set(key, stored
+        ? JSON.parse(stored)
+        : createTaskDetailsMockBundle(taskId, currentUserId)
+      );
+    } catch {
+      mockStoreByTaskId.set(key, createTaskDetailsMockBundle(taskId, currentUserId));
+    }
   }
   return mockStoreByTaskId.get(key);
 };
@@ -107,6 +125,7 @@ export const updateTaskDetails = async (taskId, nextTask, currentUserId) => {
     });
   }
 
+  saveMockStore(taskId);
   return deepClone(store.task);
 };
 
@@ -161,6 +180,7 @@ export const addTaskDetailsComment = async (
     });
   }
 
+  saveMockStore(taskId);
   return deepClone(comment);
 };
 
@@ -180,6 +200,7 @@ export const deleteTaskDetailsComment = async (taskId, commentId, currentUserId)
     action: "Comment deleted",
     description: `Deleted comment: ${removedComment.commentText.slice(0, 80)}`
   });
+  saveMockStore(taskId);
 };
 
 export const editTaskDetailsComment = async (taskId, commentId, commentText, currentUserId) => {
@@ -206,6 +227,7 @@ export const editTaskDetailsComment = async (taskId, commentId, commentText, cur
     description: `Updated comment: ${commentText.slice(0, 80)}`,
   });
 
+  saveMockStore(taskId);
   return deepClone(existing);
 };
 
@@ -227,4 +249,5 @@ export const deleteTaskDetailsAttachment = async (taskId, attachmentId, currentU
     action: "Attachment deleted",
     description: `Deleted attachment ${removedAttachment.fileName}`
   });
+  saveMockStore(taskId);
 };

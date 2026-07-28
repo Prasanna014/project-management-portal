@@ -98,6 +98,32 @@ const calcOpenDuration = (start, end) => {
   return `${mins}m`;
 };
 
+// Auto-derive estimated hours from target date: count working days × 9 hrs
+const calcEstimatedHoursFromTargetDate = (targetDate) => {
+  if (!targetDate) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const end = new Date(targetDate);
+  end.setHours(0, 0, 0, 0);
+  if (end <= today) return null;
+  let workDays = 0;
+  const cur = new Date(today);
+  while (cur < end) {
+    cur.setDate(cur.getDate() + 1);
+    const day = cur.getDay(); // 0=Sun, 6=Sat
+    if (day !== 0 && day !== 6) workDays++;
+  }
+  return workDays > 0 ? workDays * 9 : null;
+};
+
+// Fill estimatedHours from targetDate when the task has no estimate stored
+const withDerivedEstimate = (rawTask) => {
+  if (!rawTask) return rawTask;
+  if (rawTask.estimatedHours != null && Number(rawTask.estimatedHours) > 0) return rawTask;
+  const derived = calcEstimatedHoursFromTargetDate(rawTask.targetDate);
+  return derived ? { ...rawTask, estimatedHours: derived } : rawTask;
+};
+
 const getDueDateStyle = (targetDate) => {
   if (!targetDate) return null;
   const diffDays = Math.ceil((new Date(targetDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -204,7 +230,7 @@ export default function TaskDetailsPage() {
 
       if (usingMockData) {
         const pageData = await loadTaskDetailsPageData(taskId, currentUserId);
-        setTask(pageData.task || null);
+        setTask(withDerivedEstimate(pageData.task) || null);
         setComments(pageData.comments || []);
         setAttachments(pageData.attachments || []);
         setHistory(pageData.history || []);
@@ -221,7 +247,7 @@ export default function TaskDetailsPage() {
       ]);
 
       const coreTask = await getTaskById(taskId);
-      setTask(coreTask || null);
+      setTask(withDerivedEstimate(coreTask) || null);
 
       const [commentsRes, attachmentsRes, historyRes, usersRes] = await Promise.allSettled([
         getComments(taskId),
@@ -344,7 +370,7 @@ export default function TaskDetailsPage() {
         priority: mappedPriority,
         ownerId: editForm.ownerId ? Number(editForm.ownerId) : null,
         targetDate: editForm.targetDate || null,
-        estimatedHours: editForm.estimatedHours !== "" ? parseFloat(editForm.estimatedHours) : null,
+        estimatedHours: calcEstimatedHoursFromTargetDate(editForm.targetDate),
         loggedHours: task.loggedHours ?? null,
       };
 
@@ -368,18 +394,43 @@ export default function TaskDetailsPage() {
   const handleLogTime = async () => {
     const hours = parseFloat(logHoursInput);
     if (isNaN(hours) || hours <= 0) { setError("Please enter valid hours (e.g. 1.5)"); return; }
+    if (!logTimeNote.trim()) { setError("Note is required — describe what you worked on"); return; }
     const snapshot = task;
+    const optimisticId = `tmp-log-${Date.now()}`;
     try {
       setSubmitting(true);
       const newLogged = (Number(task.loggedHours) || 0) + hours;
+      const commentText = `⏱️ Logged ${fmtHours(hours)}\n${logTimeNote.trim()}`;
+
+      // Optimistic: update hours tile + inject comment immediately
       setTask((t) => (t ? { ...t, loggedHours: newLogged } : t));
+      const optimisticComment = {
+        id: optimisticId,
+        taskId: Number(taskId),
+        commentText,
+        commentedBy: currentUserId,
+        commentedAt: new Date().toISOString(),
+      };
+      setComments((prev) => [...prev, optimisticComment]);
+
       await updateTaskDetails(taskId, { ...task, loggedHours: newLogged }, currentUserId);
+      const created = await addTaskDetailsComment(
+        taskId,
+        { commentText, commentedBy: currentUserId },
+        null,
+        currentUserId
+      );
+      if (created) {
+        setComments((prev) => prev.map((c) => c.id === optimisticId ? created : c));
+      }
+
       setOpenLogTimeDialog(false);
       setLogHoursInput("");
       setLogTimeNote("");
       setSuccess(`Logged ${fmtHours(hours)}`);
     } catch (err) {
       setTask(snapshot);
+      setComments((prev) => prev.filter((c) => c.id !== optimisticId));
       setError(`Failed to log time: ${err.message}`);
     } finally {
       setSubmitting(false);
@@ -1404,19 +1455,7 @@ export default function TaskDetailsPage() {
               </Button>
             </Box>
 
-            {/* -- Estimated Hours -- */}
-            <TextField
-              label="Estimated Hours"
-              type="number"
-              inputProps={{ min: 0, step: 0.5 }}
-              value={editForm.estimatedHours}
-              onChange={(e) => setEditForm((prev) => ({ ...prev, estimatedHours: e.target.value }))}
-              fullWidth
-              size="small"
-              placeholder="e.g. 8 (hours)"
-              helperText={editForm.estimatedHours !== "" && !isNaN(Number(editForm.estimatedHours)) && Number(editForm.estimatedHours) > 0 ? `= ${fmtHours(Number(editForm.estimatedHours))}` : ""}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px", bgcolor: "#fff" } }}
-            />
+            {/* Estimated hours auto-calculated from target date — not shown here */}
 
             {/* -- Attachments -- */}
             <Box>
@@ -1613,14 +1652,16 @@ export default function TaskDetailsPage() {
               )}
             </Box>
             <TextField
-              label="Note (optional)"
+              label="Work Note"
               value={logTimeNote}
               onChange={(e) => setLogTimeNote(e.target.value)}
               fullWidth
               size="small"
               multiline
               minRows={2}
-              placeholder="What did you work on?"
+              required
+              placeholder="What did you work on? (required)"
+              helperText="Describe your work — this will be posted as a comment"
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px", bgcolor: "#fff" } }}
             />
             <Box sx={{ p: "10px 14px", bgcolor: "#eff6ff", borderRadius: "8px", border: "1px solid #bfdbfe" }}>
@@ -1646,7 +1687,7 @@ export default function TaskDetailsPage() {
           <Button
             variant="contained"
             onClick={handleLogTime}
-            disabled={submitting || logHoursInput === "" || isNaN(Number(logHoursInput)) || Number(logHoursInput) <= 0}
+            disabled={submitting || logHoursInput === "" || isNaN(Number(logHoursInput)) || Number(logHoursInput) <= 0 || !logTimeNote.trim()}
             sx={{ borderRadius: "10px", textTransform: "none", bgcolor: "#3b82f6" }}
           >
             {submitting ? "Saving…" : "Log Time"}
