@@ -2,10 +2,14 @@ import React from "react";
 import { Chip } from "@mui/material";
 
 const STATUS_CONFIG = {
-  "Open":        { color: "#374151", bg: "#f3f4f6" },
-  "In Progress": { color: "#d97706", bg: "#fef3c7" },
-  "Closed":      { color: "#059669", bg: "#dcfce7" },
-  "On Hold":     { color: "#dc2626", bg: "#fee2e2" },
+  "To Do":       { color: "#64748b", bg: "#f1f5f9" },
+  "Open":        { color: "#2563eb", bg: "#eff6ff" },
+  "In Progress": { color: "#d97706", bg: "#fffbeb" },
+  "Blocked":     { color: "#dc2626", bg: "#fef2f2" },
+  "Done":        { color: "#059669", bg: "#ecfdf5" },
+  "Completed":   { color: "#7c3aed", bg: "#f5f3ff" },
+  "On Hold":     { color: "#7c3aed", bg: "#f5f3ff" },
+  "Closed":      { color: "#059669", bg: "#ecfdf5" },
 };
 
 export default function StatusChip({ status }) {

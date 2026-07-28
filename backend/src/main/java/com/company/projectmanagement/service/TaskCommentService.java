@@ -42,10 +42,8 @@ public class TaskCommentService {
         TaskComment existing = repository.findById(commentId)
                 .orElseThrow(() -> new RuntimeException("Comment not found: " + commentId));
 
+        // Only update the text — authorship (commentedBy) is intentionally preserved.
         existing.setCommentText(dto.getCommentText());
-        if (dto.getCommentedBy() != null) {
-            existing.setCommentedBy(dto.getCommentedBy());
-        }
 
         TaskComment saved = repository.save(existing);
         return mapToDto(saved);

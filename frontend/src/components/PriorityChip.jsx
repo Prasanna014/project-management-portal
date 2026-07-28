@@ -2,10 +2,10 @@ import React from "react";
 import { Chip } from "@mui/material";
 
 const PRIORITY_CONFIG = {
-  "Low":      { color: "#059669", bg: "#dcfce7" },
-  "Medium":   { color: "#2563eb", bg: "#dbeafe" },
-  "High":     { color: "#d97706", bg: "#fef3c7" },
-  "Critical": { color: "#dc2626", bg: "#fee2e2" },
+  "Low":      { color: "#059669", bg: "#ecfdf5" },
+  "Medium":   { color: "#d97706", bg: "#fffbeb" },
+  "High":     { color: "#dc2626", bg: "#fef2f2" },
+  "Critical": { color: "#9a3412", bg: "#fff7ed" },
 };
 
 export default function PriorityChip({ priority }) {

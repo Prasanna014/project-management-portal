@@ -26,7 +26,10 @@ export const createTaskDetailsMockBundle = (taskId, currentUserId = 1) => {
     ownerId,
     createdBy: 2,
     targetDate: toIso(-(6 * 24 * 60 * 60 * 1000)),
-    createdAt: toIso(12 * 24 * 60 * 60 * 1000)
+    createdAt: toIso(12 * 24 * 60 * 60 * 1000),
+    dateResolved: null,
+    estimatedHours: 8,
+    loggedHours: 3.5,
   };
 
   const comments = [

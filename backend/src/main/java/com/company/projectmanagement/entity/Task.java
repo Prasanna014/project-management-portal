@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -94,6 +95,12 @@ public class Task {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "estimated_hours", precision = 6, scale = 2)
+    private BigDecimal estimatedHours;
+
+    @Column(name = "logged_hours", precision = 6, scale = 2)
+    private BigDecimal loggedHours;
 
     @PrePersist
     public void onCreate() {

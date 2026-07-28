@@ -21,6 +21,11 @@ export async function fetchProjects(): Promise<ProjectDto[]> {
   return response.data;
 }
 
+export async function fetchProjectById(id: number): Promise<ProjectDto> {
+  const response = await httpClient.get<ProjectDto>(`/projects/${id}`);
+  return response.data;
+}
+
 export async function createProject(payload: CreateProjectRequest): Promise<ProjectDto> {
   const response = await httpClient.post<ProjectDto>('/projects', payload);
   return response.data;

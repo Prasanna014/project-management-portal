@@ -78,6 +78,8 @@ public class TaskService {
         existing.setTargetDate(dto.getTargetDate());
         existing.setDateResolved(dto.getDateResolved());
         existing.setCreatedBy(dto.getCreatedBy());
+        existing.setEstimatedHours(dto.getEstimatedHours());
+        existing.setLoggedHours(dto.getLoggedHours());
 
         Task updated = taskRepository.save(existing);
         return mapToDto(updated);
@@ -113,6 +115,8 @@ public class TaskService {
                 .createdBy(task.getCreatedBy())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
+                .estimatedHours(task.getEstimatedHours())
+                .loggedHours(task.getLoggedHours())
                 .build();
     }
 
@@ -134,6 +138,8 @@ public class TaskService {
                 .targetDate(dto.getTargetDate())
                 .dateResolved(dto.getDateResolved())
                 .createdBy(dto.getCreatedBy())
+                .estimatedHours(dto.getEstimatedHours())
+                .loggedHours(dto.getLoggedHours())
                 .build();
     }
 

@@ -5,6 +5,7 @@ import lombok.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -54,4 +55,8 @@ public class TaskDto {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    private BigDecimal estimatedHours;
+
+    private BigDecimal loggedHours;
 }

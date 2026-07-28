@@ -243,6 +243,34 @@ export function DashboardPage() {
               }}
               displayEmpty
               inputProps={{ "aria-label": "Project selector" }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    mt: 1,
+                    borderRadius: 3,
+                    background: "linear-gradient(135deg, #f8fbff 0%, #eff6ff 60%, #ecfeff 100%)",
+                    border: "1px solid rgba(148, 163, 184, 0.2)",
+                    boxShadow: "0 20px 48px rgba(15, 23, 42, 0.14)",
+                    "& .MuiMenuItem-root": {
+                      borderRadius: 2,
+                      mx: 0.75,
+                      my: 0.25,
+                      fontSize: "0.9rem",
+                      fontWeight: 600,
+                      color: "#0f172a",
+                      "&:hover": {
+                        bgcolor: "rgba(37, 99, 235, 0.08)",
+                        color: "#2563eb",
+                      },
+                      "&.Mui-selected": {
+                        bgcolor: "rgba(37, 99, 235, 0.12)",
+                        color: "#1d4ed8",
+                        "&:hover": { bgcolor: "rgba(37, 99, 235, 0.16)" },
+                      },
+                    },
+                  },
+                },
+              }}
             >
               <MenuItem value="ALL">All Projects</MenuItem>
               {projects.map((project) => (

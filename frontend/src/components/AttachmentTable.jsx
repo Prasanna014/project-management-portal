@@ -45,7 +45,7 @@ export default function AttachmentTable({ attachments = [], onDelete, onPreview 
             transition: "all 0.15s",
             "&:hover": { borderColor: "#3b82f6", bgcolor: "#eff6ff", boxShadow: "0 1px 4px rgba(59,130,246,0.12)" },
           }}
-          onClick={() => onPreview?.(att)}
+          onClick={(e) => onPreview?.(att, e)}
         >
           <FileIcon name={att.fileName} />
           <Box sx={{ flex: 1, minWidth: 0 }}>
