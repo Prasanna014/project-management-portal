@@ -197,6 +197,7 @@ export const editTaskDetailsComment = async (taskId, commentId, commentText, cur
   }
 
   existing.commentText = commentText;
+  existing.updatedAt = new Date().toISOString();
   existing.createdAt = existing.createdAt || new Date().toISOString();
 
   pushHistoryEntry(store, {

@@ -30,8 +30,16 @@ public class TaskComment {
     @Column(name = "commented_at", nullable = false, updatable = false)
     private LocalDateTime commentedAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @PrePersist
     public void prePersist() {
         this.commentedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void preUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

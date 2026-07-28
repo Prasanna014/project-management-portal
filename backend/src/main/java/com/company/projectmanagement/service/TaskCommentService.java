@@ -4,8 +4,10 @@ package com.company.projectmanagement.service;
 import com.company.projectmanagement.dto.TaskCommentDto;
 import com.company.projectmanagement.entity.TaskComment;
 import com.company.projectmanagement.repository.TaskCommentRepository;
+import com.company.projectmanagement.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -38,12 +40,14 @@ public class TaskCommentService {
     }
 
     /* ================= UPDATE COMMENT ================= */
+    @Transactional
     public TaskCommentDto updateComment(Long commentId, TaskCommentDto dto) {
         TaskComment existing = repository.findById(commentId)
-                .orElseThrow(() -> new RuntimeException("Comment not found: " + commentId));
+                .orElseThrow(() -> new ResourceNotFoundException("Comment not found: " + commentId));
 
         // Only update the text — authorship (commentedBy) is intentionally preserved.
         existing.setCommentText(dto.getCommentText());
+        // @PreUpdate will set updatedAt automatically on save
 
         TaskComment saved = repository.save(existing);
         return mapToDto(saved);
@@ -65,6 +69,7 @@ public class TaskCommentService {
                 .commentText(entity.getCommentText())
                 .commentedBy(entity.getCommentedBy())
                 .commentedAt(entity.getCommentedAt())
+                .updatedAt(entity.getUpdatedAt())
                 .build();
     }
 }

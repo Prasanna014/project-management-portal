@@ -447,18 +447,24 @@ export default function TaskDetailsPage() {
   };
 
   const handleEditComment = async (id, nextText) => {
+    const snapshot = comments;
     try {
-      setComments((prev) => prev.map((comment) => (
-        Number(comment.id) === Number(id)
-          ? { ...comment, commentText: nextText, updatedAt: new Date().toISOString() }
-          : comment
-      )));
-
-      await editTaskDetailsComment(taskId, id, nextText, currentUserId);
+      // Optimistic update with edited flag
+      setComments((prev) => prev.map((c) =>
+        Number(c.id) === Number(id)
+          ? { ...c, commentText: nextText, updatedAt: new Date().toISOString() }
+          : c
+      ));
+      const updated = await editTaskDetailsComment(taskId, id, nextText, currentUserId);
+      // Apply server response so updatedAt is authoritative
+      if (updated) {
+        setComments((prev) => prev.map((c) =>
+          Number(c.id) === Number(id) ? { ...c, ...updated } : c
+        ));
+      }
       setSuccess("Comment updated");
-      await loadAll({ silent: true });
     } catch (err) {
-      await loadAll({ silent: true });
+      setComments(snapshot);
       setError(`Failed to update comment: ${err.message}`);
     }
   };

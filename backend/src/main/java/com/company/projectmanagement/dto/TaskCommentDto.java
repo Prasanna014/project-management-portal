@@ -24,4 +24,6 @@ public class TaskCommentDto {
     private Long commentedBy;
 
     private LocalDateTime commentedAt;
+
+    private LocalDateTime updatedAt;
 }
