@@ -76,7 +76,7 @@ export function WorkflowStatesPanel() {
   const workflowsQuery = useQuery({
     queryKey: ["workflows-list-for-states"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: WorkflowOption[] }>("/api/admin/workflows?page=0&size=200");
+      const res = await httpClient.get<{ content: WorkflowOption[] }>("/admin/workflows?page=0&size=200");
       return res.data.content ?? [];
     },
   });
@@ -94,7 +94,7 @@ export function WorkflowStatesPanel() {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      httpClient.post("/api/admin/workflows/states", {
+      httpClient.post("/admin/workflows/states", {
         workflowId: Number(workflowId),
         stateKey: form.stateKey,
         stateName: form.stateName,

@@ -64,7 +64,7 @@ export const CompanyProfilePanel: React.FC = () => {
 
   useEffect(() => {
     httpClient
-      .get<CompanyProfileData>("/api/admin/organization/profile")
+      .get<CompanyProfileData>("/admin/organization/profile")
       .then((res) => {
         if (res.data) {
           setForm({
@@ -90,7 +90,7 @@ export const CompanyProfilePanel: React.FC = () => {
     }
     setSaving(true);
     httpClient
-      .put<CompanyProfileData>("/api/admin/organization/profile", form)
+      .put<CompanyProfileData>("/admin/organization/profile", form)
       .then((res) => {
         setForm({ ...emptyProfile, ...res.data });
         setSnack({ open: true, message: "Company profile saved successfully", severity: "success" });

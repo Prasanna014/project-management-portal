@@ -54,7 +54,7 @@ export function RolePermissionPanel() {
   const rolesQuery = useQuery({
     queryKey: ["all-roles-list"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: RoleOption[] }>("/api/admin/roles?page=0&size=200");
+      const res = await httpClient.get<{ content: RoleOption[] }>("/admin/roles?page=0&size=200");
       return res.data.content ?? [];
     },
   });
@@ -62,7 +62,7 @@ export function RolePermissionPanel() {
   const permissionsQuery = useQuery({
     queryKey: ["all-permissions-list"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: PermissionOption[] }>("/api/admin/permissions?page=0&size=500");
+      const res = await httpClient.get<{ content: PermissionOption[] }>("/admin/permissions?page=0&size=500");
       return res.data.content ?? [];
     },
   });
@@ -80,7 +80,7 @@ export function RolePermissionPanel() {
 
   const assignMutation = useMutation({
     mutationFn: () =>
-      httpClient.post("/api/admin/roles/assignments/permissions", {
+      httpClient.post("/admin/roles/assignments/permissions", {
         roleId: Number(roleId),
         permissionId: Number(selectedPermissionId),
         grantedBy: null,

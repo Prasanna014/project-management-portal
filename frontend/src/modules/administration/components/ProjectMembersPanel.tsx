@@ -63,7 +63,7 @@ export function ProjectMembersPanel() {
   const projectsQuery = useQuery({
     queryKey: ["all-projects-for-members"],
     queryFn: async () => {
-      const res = await httpClient.get<ProjectOption[]>("/api/projects");
+      const res = await httpClient.get<ProjectOption[]>("/projects");
       return Array.isArray(res.data) ? res.data : (res.data as { content?: ProjectOption[] }).content ?? [];
     },
   });
@@ -71,7 +71,7 @@ export function ProjectMembersPanel() {
   const usersQuery = useQuery({
     queryKey: ["all-users-for-members"],
     queryFn: async () => {
-      const res = await httpClient.get<UserOption[]>("/api/users");
+      const res = await httpClient.get<UserOption[]>("/users");
       return res.data;
     },
   });
@@ -89,7 +89,7 @@ export function ProjectMembersPanel() {
 
   const createMutation = useMutation({
     mutationFn: () =>
-      httpClient.post("/api/admin/project-members", {
+      httpClient.post("/admin/project-members", {
         projectId: Number(projectId),
         userId: Number(form.userId),
         memberRole: form.memberRole || "MEMBER",

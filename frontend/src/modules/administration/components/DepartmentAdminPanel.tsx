@@ -176,7 +176,7 @@ export const DepartmentAdminPanel: React.FC = () => {
     if (activeFilter !== "all") params.active = activeFilter;
 
     httpClient
-      .get<{ content: DepartmentRecord[]; totalPages: number; totalElements: number }>("/api/admin/departments", { params })
+      .get<{ content: DepartmentRecord[]; totalPages: number; totalElements: number }>("/admin/departments", { params })
       .then((res) => {
         setRows(res.data?.content ?? []);
         setTotalPages(res.data?.totalPages ?? 0);
@@ -188,15 +188,15 @@ export const DepartmentAdminPanel: React.FC = () => {
 
   const loadLookups = () => {
     httpClient
-      .get<{ content: DeptSummary[] }>("/api/admin/departments", { params: { page: "0", size: "200", active: "true" } })
+      .get<{ content: DeptSummary[] }>("/admin/departments", { params: { page: "0", size: "200", active: "true" } })
       .then((r) => setDeptLookup(r.data?.content ?? []));
 
     httpClient
-      .get<UserSummary[]>("/api/users")
+      .get<UserSummary[]>("/users")
       .then((r) => setUserLookup(r.data ?? []));
 
     httpClient
-      .get<{ content: WorkflowSummary[] }>("/api/admin/workflows", { params: { page: "0", size: "200", active: "true" } })
+      .get<{ content: WorkflowSummary[] }>("/admin/workflows", { params: { page: "0", size: "200", active: "true" } })
       .then((r) => setWorkflowLookup(r.data?.content ?? []));
   };
 
@@ -242,7 +242,7 @@ export const DepartmentAdminPanel: React.FC = () => {
 
     const promise =
       dialogMode === "create"
-        ? httpClient.post("/api/admin/departments", formToPayload(form))
+        ? httpClient.post("/admin/departments", formToPayload(form))
         : httpClient.put(`/api/admin/departments/${editId}`, formToPayload(form));
 
     promise

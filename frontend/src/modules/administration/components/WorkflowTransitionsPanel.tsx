@@ -76,7 +76,7 @@ export function WorkflowTransitionsPanel() {
   const workflowsQuery = useQuery({
     queryKey: ["workflows-list-for-transitions"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: WorkflowOption[] }>("/api/admin/workflows?page=0&size=200");
+      const res = await httpClient.get<{ content: WorkflowOption[] }>("/admin/workflows?page=0&size=200");
       return res.data.content ?? [];
     },
   });
@@ -112,7 +112,7 @@ export function WorkflowTransitionsPanel() {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => httpClient.post("/api/admin/workflows/transitions", buildPayload()),
+    mutationFn: () => httpClient.post("/admin/workflows/transitions", buildPayload()),
     onSuccess: () => { reloadTransitions(); setDialogMode(null); showSnackbar("Transition created.", "success"); },
     onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
   });

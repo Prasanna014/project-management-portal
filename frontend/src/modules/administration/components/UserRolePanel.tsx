@@ -56,7 +56,7 @@ export function UserRolePanel() {
   const usersQuery = useQuery({
     queryKey: ["all-users-for-roles"],
     queryFn: async () => {
-      const res = await httpClient.get<UserOption[]>("/api/users");
+      const res = await httpClient.get<UserOption[]>("/users");
       return res.data;
     },
   });
@@ -64,7 +64,7 @@ export function UserRolePanel() {
   const rolesQuery = useQuery({
     queryKey: ["all-roles-for-assignment"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: RoleOption[] }>("/api/admin/roles?page=0&size=200");
+      const res = await httpClient.get<{ content: RoleOption[] }>("/admin/roles?page=0&size=200");
       return res.data.content ?? [];
     },
   });
@@ -82,7 +82,7 @@ export function UserRolePanel() {
 
   const assignMutation = useMutation({
     mutationFn: () =>
-      httpClient.post("/api/admin/roles/assignments/users", {
+      httpClient.post("/admin/roles/assignments/users", {
         userId: Number(userId),
         roleId: Number(selectedRoleId),
         assignedBy: null,

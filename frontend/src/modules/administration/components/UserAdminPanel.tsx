@@ -63,7 +63,7 @@ export function UserAdminPanel() {
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: async () => {
-      const res = await httpClient.get<UserDto[]>("/api/users");
+      const res = await httpClient.get<UserDto[]>("/users");
       return res.data;
     },
   });
@@ -75,7 +75,7 @@ export function UserAdminPanel() {
   const reload = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
 
   const createMutation = useMutation({
-    mutationFn: () => httpClient.post("/api/users", form),
+    mutationFn: () => httpClient.post("/users", form),
     onSuccess: () => { reload(); setDialogMode(null); showSnackbar("User created.", "success"); },
     onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
   });

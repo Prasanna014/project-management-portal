@@ -48,7 +48,7 @@ export function ProjectDepartmentsPanel() {
   const projectsQuery = useQuery({
     queryKey: ["all-projects-for-depts"],
     queryFn: async () => {
-      const res = await httpClient.get<ProjectOption[]>("/api/projects");
+      const res = await httpClient.get<ProjectOption[]>("/projects");
       return Array.isArray(res.data) ? res.data : (res.data as { content?: ProjectOption[] }).content ?? [];
     },
   });
@@ -56,7 +56,7 @@ export function ProjectDepartmentsPanel() {
   const deptsQuery = useQuery({
     queryKey: ["all-departments-for-assignment"],
     queryFn: async () => {
-      const res = await httpClient.get<{ content: DepartmentOption[] }>("/api/admin/departments?page=0&size=200");
+      const res = await httpClient.get<{ content: DepartmentOption[] }>("/admin/departments?page=0&size=200");
       return res.data.content ?? [];
     },
   });
@@ -74,7 +74,7 @@ export function ProjectDepartmentsPanel() {
 
   const assignMutation = useMutation({
     mutationFn: () =>
-      httpClient.post("/api/admin/departments/assignments/projects", {
+      httpClient.post("/admin/departments/assignments/projects", {
         projectId: Number(projectId),
         departmentId: Number(selectedDeptId),
       }),
