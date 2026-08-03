@@ -17,6 +17,16 @@ public class DepartmentResponseDto {
     private String departmentCode;
     private String departmentName;
     private String description;
+    private Long parentDepartmentId;
+    private String parentDepartmentName;
+    private Long departmentHeadId;
+    private String departmentHeadName;
+    private String costCenter;
+    private String departmentEmail;
+    private String departmentPhone;
+    private String workingHours;
+    private Long defaultWorkflowId;
+    private String defaultWorkflowName;
     private Boolean active;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

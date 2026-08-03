@@ -12,6 +12,8 @@ import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.DepartmentRepository;
 import com.company.projectmanagement.repository.ProjectDepartmentRepository;
 import com.company.projectmanagement.repository.ProjectRepository;
+import com.company.projectmanagement.repository.UserRepository;
+import com.company.projectmanagement.repository.WorkflowDefinitionRepository;
 import com.company.projectmanagement.service.DepartmentAdminService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +30,8 @@ public class DepartmentAdminServiceImpl implements DepartmentAdminService {
     private final DepartmentRepository departmentRepository;
     private final ProjectRepository projectRepository;
     private final ProjectDepartmentRepository projectDepartmentRepository;
+    private final UserRepository userRepository;
+    private final WorkflowDefinitionRepository workflowDefinitionRepository;
 
     @Override
     @Transactional
@@ -59,6 +63,13 @@ public class DepartmentAdminServiceImpl implements DepartmentAdminService {
         existing.setDepartmentCode(request.getDepartmentCode());
         existing.setDepartmentName(request.getDepartmentName());
         existing.setDescription(request.getDescription());
+        existing.setParentDepartmentId(request.getParentDepartmentId());
+        existing.setDepartmentHeadId(request.getDepartmentHeadId());
+        existing.setCostCenter(request.getCostCenter());
+        existing.setDepartmentEmail(request.getDepartmentEmail());
+        existing.setDepartmentPhone(request.getDepartmentPhone());
+        existing.setWorkingHours(request.getWorkingHours());
+        existing.setDefaultWorkflowId(request.getDefaultWorkflowId());
         if (request.getActive() != null) {
             existing.setActive(request.getActive());
         }
@@ -156,20 +167,47 @@ public class DepartmentAdminServiceImpl implements DepartmentAdminService {
                 .departmentCode(request.getDepartmentCode())
                 .departmentName(request.getDepartmentName())
                 .description(request.getDescription())
+                .parentDepartmentId(request.getParentDepartmentId())
+                .departmentHeadId(request.getDepartmentHeadId())
+                .costCenter(request.getCostCenter())
+                .departmentEmail(request.getDepartmentEmail())
+                .departmentPhone(request.getDepartmentPhone())
+                .workingHours(request.getWorkingHours())
+                .defaultWorkflowId(request.getDefaultWorkflowId())
                 .active(request.getActive())
                 .build();
     }
 
     private DepartmentResponseDto mapToResponse(Department entity) {
-        return DepartmentResponseDto.builder()
+        DepartmentResponseDto dto = DepartmentResponseDto.builder()
                 .id(entity.getId())
                 .departmentCode(entity.getDepartmentCode())
                 .departmentName(entity.getDepartmentName())
                 .description(entity.getDescription())
+                .parentDepartmentId(entity.getParentDepartmentId())
+                .departmentHeadId(entity.getDepartmentHeadId())
+                .costCenter(entity.getCostCenter())
+                .departmentEmail(entity.getDepartmentEmail())
+                .departmentPhone(entity.getDepartmentPhone())
+                .workingHours(entity.getWorkingHours())
+                .defaultWorkflowId(entity.getDefaultWorkflowId())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())
                 .build();
+        if (entity.getParentDepartmentId() != null) {
+            departmentRepository.findById(entity.getParentDepartmentId())
+                    .ifPresent(p -> dto.setParentDepartmentName(p.getDepartmentName()));
+        }
+        if (entity.getDepartmentHeadId() != null) {
+            userRepository.findById(entity.getDepartmentHeadId())
+                    .ifPresent(u -> dto.setDepartmentHeadName(u.getFullName()));
+        }
+        if (entity.getDefaultWorkflowId() != null) {
+            workflowDefinitionRepository.findById(entity.getDefaultWorkflowId())
+                    .ifPresent(w -> dto.setDefaultWorkflowName(w.getWorkflowName()));
+        }
+        return dto;
     }
 
     private ProjectDepartmentAssignmentResponseDto mapProjectDepartmentResponse(ProjectDepartment entity) {

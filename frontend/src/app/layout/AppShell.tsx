@@ -87,6 +87,18 @@ export function AppShell() {
     []
   );
 
+  // group available modules by section
+  const adminNavSections = useMemo(() => {
+    const sectionOrder = ["Organization", "Access Control", "Task Catalog", "Workflows", "Projects", "System"];
+    const grouped = new Map<string, typeof availableAdminModules>();
+    for (const item of availableAdminModules) {
+      const sec = item.section ?? "Other";
+      if (!grouped.has(sec)) grouped.set(sec, []);
+      grouped.get(sec)!.push(item);
+    }
+    return sectionOrder.filter((s) => grouped.has(s)).map((s) => ({ section: s, items: grouped.get(s)! }));
+  }, [availableAdminModules]);
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>
       <AppBar
@@ -219,32 +231,47 @@ export function AppShell() {
 
           <Collapse in={adminExpanded && !drawerCollapsed}>
             <List disablePadding>
-              {availableAdminModules.map((item) => (
-                <ListItemButton
-                  key={item.key}
-                  component={NavLink}
-                  to={item.to}
-                  selected={location.pathname.startsWith(item.to)}
-                  sx={{
-                    pl: 4,
-                    mx: 1,
-                    mb: 0.4,
-                    borderRadius: 2,
-                    minHeight: 40,
-                    "&.Mui-selected": {
-                      bgcolor: "#DDE8FF",
-                      color: "#1E3A8A",
-                    },
-                  }}
-                >
-                  <ListItemText primary={item.label} />
-                </ListItemButton>
+              {adminNavSections.map(({ section, items }) => (
+                <Box key={section}>
+                  <ListSubheader
+                    sx={{
+                      pl: 4,
+                      bgcolor: "transparent",
+                      color: "#9CA3AF",
+                      fontSize: "0.65rem",
+                      fontWeight: 700,
+                      letterSpacing: "0.1em",
+                      textTransform: "uppercase",
+                      lineHeight: "28px",
+                    }}
+                  >
+                    {section}
+                  </ListSubheader>
+                  {items.map((navItem) => (
+                    <ListItemButton
+                      key={navItem.key}
+                      component={NavLink}
+                      to={navItem.to}
+                      selected={location.pathname.startsWith(navItem.to)}
+                      sx={{
+                        pl: 4,
+                        mx: 1,
+                        mb: 0.4,
+                        borderRadius: 2,
+                        minHeight: 38,
+                        "&.Mui-selected": { bgcolor: "#DDE8FF", color: "#1E3A8A" },
+                      }}
+                    >
+                      <ListItemText primary={navItem.label} primaryTypographyProps={{ fontSize: "0.875rem" }} />
+                    </ListItemButton>
+                  ))}
+                </Box>
               ))}
 
-              {unavailableAdminModules.map((item) => (
-                <ListItemButton key={item.key} disabled sx={{ pl: 4 }}>
-                  <ListItemText primary={item.label} secondary={item.note} />
-                  <Chip size="small" label="API Missing" />
+              {unavailableAdminModules.map((navItem) => (
+                <ListItemButton key={navItem.key} disabled sx={{ pl: 4 }}>
+                  <ListItemText primary={navItem.label} secondary={navItem.note} />
+                  <Chip size="small" label="N/A" />
                 </ListItemButton>
               ))}
             </List>

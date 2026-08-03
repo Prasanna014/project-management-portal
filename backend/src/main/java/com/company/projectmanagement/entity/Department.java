@@ -50,6 +50,27 @@ public class Department {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "parent_department_id")
+    private Long parentDepartmentId;
+
+    @Column(name = "department_head_id")
+    private Long departmentHeadId;
+
+    @Column(name = "cost_center")
+    private String costCenter;
+
+    @Column(name = "department_email")
+    private String departmentEmail;
+
+    @Column(name = "department_phone")
+    private String departmentPhone;
+
+    @Column(name = "working_hours")
+    private String workingHours;
+
+    @Column(name = "default_workflow_id")
+    private Long defaultWorkflowId;
+
     @Column(name = "active", nullable = false)
     private Boolean active;
 

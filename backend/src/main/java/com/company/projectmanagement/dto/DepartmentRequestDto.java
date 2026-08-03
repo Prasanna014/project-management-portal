@@ -23,5 +23,19 @@ public class DepartmentRequestDto {
 
     private String description;
 
+    private Long parentDepartmentId;
+
+    private Long departmentHeadId;
+
+    private String costCenter;
+
+    private String departmentEmail;
+
+    private String departmentPhone;
+
+    private String workingHours;
+
+    private Long defaultWorkflowId;
+
     private Boolean active;
 }

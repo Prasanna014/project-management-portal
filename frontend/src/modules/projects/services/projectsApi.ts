@@ -1,11 +1,19 @@
 import { httpClient } from "@shared/api/httpClient";
 
+export type ProjectDeptSummary = {
+  id: number;
+  departmentName: string;
+};
+
 export type ProjectDto = {
   id: number;
   projectCode: string;
   projectName: string;
   description?: string;
   active: boolean;
+  workflowId?: number;
+  workflowName?: string;
+  departments?: ProjectDeptSummary[];
   createdAt?: string;
 };
 
@@ -14,6 +22,7 @@ export type CreateProjectRequest = {
   projectName: string;
   description?: string;
   active: boolean;
+  workflowId?: number;
 };
 
 export async function fetchProjects(): Promise<ProjectDto[]> {

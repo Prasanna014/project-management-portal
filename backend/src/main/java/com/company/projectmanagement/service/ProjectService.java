@@ -2,12 +2,19 @@
 package com.company.projectmanagement.service;
 
 import com.company.projectmanagement.dto.ProjectDto;
+import com.company.projectmanagement.entity.Department;
 import com.company.projectmanagement.entity.Project;
+import com.company.projectmanagement.entity.WorkflowDefinition;
+import com.company.projectmanagement.repository.DepartmentRepository;
+import com.company.projectmanagement.repository.ProjectDepartmentRepository;
 import com.company.projectmanagement.repository.ProjectRepository;
+import com.company.projectmanagement.repository.WorkflowDefinitionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -15,6 +22,9 @@ import java.util.stream.Collectors;
 public class ProjectService {
 
     private final ProjectRepository repository;
+    private final ProjectDepartmentRepository projectDepartmentRepository;
+    private final DepartmentRepository departmentRepository;
+    private final WorkflowDefinitionRepository workflowDefinitionRepository;
 
     /* ================= GET ALL ================= */
     public List<ProjectDto> getAllProjects() {
@@ -59,6 +69,7 @@ public class ProjectService {
         existing.setProjectName(dto.getProjectName());
         existing.setDescription(dto.getDescription());
         existing.setActive(dto.getActive());
+        existing.setWorkflowId(dto.getWorkflowId());
 
         Project updated = repository.save(existing);
         return mapToDto(updated);
@@ -74,14 +85,46 @@ public class ProjectService {
 
     /* ================= MAPPER ================= */
     private ProjectDto mapToDto(Project p) {
+        String workflowName = null;
+        if (p.getWorkflowId() != null) {
+            workflowName = workflowDefinitionRepository.findById(p.getWorkflowId())
+                    .map(WorkflowDefinition::getWorkflowName)
+                    .orElse(null);
+        }
+
+        List<ProjectDto.DeptSummary> departments = buildDeptSummaries(p.getId());
+
         return ProjectDto.builder()
                 .id(p.getId())
                 .projectCode(p.getProjectCode())
                 .projectName(p.getProjectName())
                 .description(p.getDescription())
                 .active(p.getActive())
+                .workflowId(p.getWorkflowId())
+                .workflowName(workflowName)
+                .departments(departments)
                 .createdAt(p.getCreatedAt())
                 .build();
+    }
+
+    private List<ProjectDto.DeptSummary> buildDeptSummaries(Long projectId) {
+        if (projectId == null) {
+            return List.of();
+        }
+        Set<Long> deptIds = projectDepartmentRepository.findByProjectId(projectId)
+                .stream()
+                .map(pd -> pd.getDepartmentId())
+                .collect(Collectors.toSet());
+        if (deptIds.isEmpty()) {
+            return List.of();
+        }
+        return departmentRepository.findAllById(deptIds)
+                .stream()
+                .map(d -> ProjectDto.DeptSummary.builder()
+                        .id(d.getId())
+                        .departmentName(d.getDepartmentName())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     private Project mapToEntity(ProjectDto dto) {
@@ -90,6 +133,7 @@ public class ProjectService {
                 .projectName(dto.getProjectName())
                 .description(dto.getDescription())
                 .active(dto.getActive())
+                .workflowId(dto.getWorkflowId())
                 .build();
     }
 }

@@ -272,7 +272,95 @@ CREATE TABLE IF NOT EXISTS tracker.project_departments (
     CONSTRAINT project_departments_department_fk FOREIGN KEY (department_id) REFERENCES tracker.departments(id)
 );
 
+-- Organization: Company Profile, Business Units, Time Zones, Locations, Holidays
+CREATE TABLE IF NOT EXISTS tracker.company_profile (
+    id BIGSERIAL PRIMARY KEY,
+    company_name VARCHAR(255) NOT NULL,
+    trading_name VARCHAR(255),
+    registration_number VARCHAR(100),
+    industry VARCHAR(100),
+    logo_url VARCHAR(500),
+    default_timezone VARCHAR(100),
+    address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    website VARCHAR(255),
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tracker.business_units (
+    id BIGSERIAL PRIMARY KEY,
+    unit_code VARCHAR(100) NOT NULL,
+    unit_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    department_id BIGINT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT business_units_code_unique UNIQUE (unit_code),
+    CONSTRAINT business_units_name_unique UNIQUE (unit_name),
+    CONSTRAINT business_units_department_fk FOREIGN KEY (department_id) REFERENCES tracker.departments(id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.time_zones (
+    id BIGSERIAL PRIMARY KEY,
+    timezone_code VARCHAR(100) NOT NULL,
+    timezone_name VARCHAR(255) NOT NULL,
+    utc_offset VARCHAR(10) NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT time_zones_code_unique UNIQUE (timezone_code),
+    CONSTRAINT time_zones_name_unique UNIQUE (timezone_name)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.locations (
+    id BIGSERIAL PRIMARY KEY,
+    location_code VARCHAR(100) NOT NULL,
+    location_name VARCHAR(255) NOT NULL,
+    address_line1 VARCHAR(255),
+    address_line2 VARCHAR(255),
+    city VARCHAR(100),
+    state VARCHAR(100),
+    country VARCHAR(100),
+    timezone_id BIGINT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT locations_code_unique UNIQUE (location_code),
+    CONSTRAINT locations_name_unique UNIQUE (location_name),
+    CONSTRAINT locations_timezone_fk FOREIGN KEY (timezone_id) REFERENCES tracker.time_zones(id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.holidays (
+    id BIGSERIAL PRIMARY KEY,
+    holiday_date DATE NOT NULL,
+    holiday_name VARCHAR(255) NOT NULL,
+    holiday_type VARCHAR(50) NOT NULL DEFAULT 'PUBLIC',
+    location_id BIGINT,
+    recurring BOOLEAN NOT NULL DEFAULT false,
+    description TEXT,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT holidays_location_fk FOREIGN KEY (location_id) REFERENCES tracker.locations(id)
+);
+
 -- Backward-compatible extension columns
+ALTER TABLE tracker.departments
+    ADD COLUMN IF NOT EXISTS parent_department_id BIGINT,
+    ADD COLUMN IF NOT EXISTS department_head_id BIGINT,
+    ADD COLUMN IF NOT EXISTS cost_center VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS department_email VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS department_phone VARCHAR(50),
+    ADD COLUMN IF NOT EXISTS working_hours VARCHAR(100),
+    ADD COLUMN IF NOT EXISTS default_workflow_id BIGINT;
+
 ALTER TABLE tracker.users
     ADD COLUMN IF NOT EXISTS department_id BIGINT,
     ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
@@ -287,6 +375,42 @@ ALTER TABLE tracker.tasks
     ADD COLUMN IF NOT EXISTS workflow_state_id BIGINT;
 
 -- Safe foreign key additions for existing tables
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'departments_parent_fk' AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.departments
+            ADD CONSTRAINT departments_parent_fk
+            FOREIGN KEY (parent_department_id) REFERENCES tracker.departments(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'departments_head_fk' AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.departments
+            ADD CONSTRAINT departments_head_fk
+            FOREIGN KEY (department_head_id) REFERENCES tracker.users(id);
+    END IF;
+END $$;
+
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname = 'departments_workflow_fk' AND connamespace = 'tracker'::regnamespace
+    ) THEN
+        ALTER TABLE tracker.departments
+            ADD CONSTRAINT departments_workflow_fk
+            FOREIGN KEY (default_workflow_id) REFERENCES tracker.workflow_definitions(id);
+    END IF;
+END $$;
+
 DO $$
 BEGIN
     IF NOT EXISTS (
@@ -374,6 +498,53 @@ END $$;
 -- Existing table indexes made idempotent
 CREATE INDEX IF NOT EXISTS idx_tasks_project_id ON tracker.tasks(project_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_owner_id ON tracker.tasks(owner_id);
+
+-- ─── New tables: Project Members, Audit Logs, Work Logs ───────────────────────
+CREATE TABLE IF NOT EXISTS tracker.project_members (
+    id BIGSERIAL PRIMARY KEY,
+    project_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    member_role VARCHAR(100) NOT NULL DEFAULT 'MEMBER',
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT project_members_project_fk FOREIGN KEY (project_id) REFERENCES tracker.projects(id),
+    CONSTRAINT project_members_user_fk FOREIGN KEY (user_id) REFERENCES tracker.users(id),
+    CONSTRAINT project_members_unique UNIQUE (project_id, user_id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    entity_type VARCHAR(100) NOT NULL,
+    entity_id BIGINT,
+    action VARCHAR(50) NOT NULL,
+    old_value TEXT,
+    new_value TEXT,
+    performed_by BIGINT,
+    performed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    ip_address VARCHAR(50),
+    notes TEXT,
+    CONSTRAINT audit_logs_performed_by_fk FOREIGN KEY (performed_by) REFERENCES tracker.users(id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.work_logs (
+    id BIGSERIAL PRIMARY KEY,
+    task_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    hours_logged DECIMAL(5,2) NOT NULL,
+    log_date DATE NOT NULL,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT work_logs_task_fk FOREIGN KEY (task_id) REFERENCES tracker.tasks(id),
+    CONSTRAINT work_logs_user_fk FOREIGN KEY (user_id) REFERENCES tracker.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_project_members_project_id ON tracker.project_members(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON tracker.project_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_entity ON tracker.audit_logs(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_performed_at ON tracker.audit_logs(performed_at);
+CREATE INDEX IF NOT EXISTS idx_work_logs_task_id ON tracker.work_logs(task_id);
+CREATE INDEX IF NOT EXISTS idx_work_logs_user_id ON tracker.work_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tracker.tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tracker.tasks(priority);
 CREATE INDEX IF NOT EXISTS idx_task_comments_task_id ON tracker.task_comments(task_id);
