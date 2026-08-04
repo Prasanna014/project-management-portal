@@ -3,3 +3,22 @@ service:
   identifier: cloning
   orgIdentifier: default
   projectIdentifier: default_project
+  serviceDefinition:
+    spec:
+      variables:
+        - name: targetpath
+          type: String
+          description: ""
+          required: false
+          value: /project-management-portal
+        - name: repo
+          type: String
+          description: ""
+          required: false
+          value: https://github.com/Prasanna014/project-management-portal
+        - name: branch
+          type: String
+          description: ""
+          required: false
+          value: main
+    type: Ssh
