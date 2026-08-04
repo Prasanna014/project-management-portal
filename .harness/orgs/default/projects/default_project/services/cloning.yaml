@@ -9,13 +9,13 @@ service:
         - name: targetpath
           type: String
           description: ""
-          required: false
+          required: true
           value: /project-management-portal
         - name: repo
           type: String
           description: ""
-          required: false
-          value: https://github.com/Prasanna014/project-management-portal
+          required: true
+          value: project-management-portal
         - name: branch
           type: String
           description: ""
