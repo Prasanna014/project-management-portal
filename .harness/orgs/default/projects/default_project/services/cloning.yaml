@@ -1,0 +1,5 @@
+service:
+  name: cloning
+  identifier: cloning
+  orgIdentifier: default
+  projectIdentifier: default_project
