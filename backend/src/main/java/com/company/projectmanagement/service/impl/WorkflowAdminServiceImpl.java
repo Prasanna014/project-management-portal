@@ -120,6 +120,27 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
 
     @Override
     @Transactional
+    public void deleteState(Long id) {
+        WorkflowState state = workflowStateRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workflow state not found: " + id));
+        boolean usedByTasks = taskRepository.findAll().stream()
+                .anyMatch(t -> Objects.equals(t.getWorkflowStateId(), id));
+        if (usedByTasks) {
+            throw new BadRequestException("State is assigned to tasks and cannot be deleted");
+        }
+        workflowStateRepository.delete(state);
+    }
+
+    @Override
+    @Transactional
+    public void deleteTransition(Long id) {
+        WorkflowTransition transition = workflowTransitionRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Workflow transition not found: " + id));
+        workflowTransitionRepository.delete(transition);
+    }
+
+    @Override
+    @Transactional
     public WorkflowStateResponseDto createState(WorkflowStateRequestDto request) {
         if (!workflowDefinitionRepository.existsById(request.getWorkflowId())) {
             throw new ResourceNotFoundException("Workflow not found: " + request.getWorkflowId());

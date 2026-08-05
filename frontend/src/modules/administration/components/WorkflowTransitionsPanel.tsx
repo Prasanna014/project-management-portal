@@ -84,8 +84,8 @@ export function WorkflowTransitionsPanel() {
   const statesQuery = useQuery({
     queryKey: ["workflow-states-for-transitions", workflowId],
     queryFn: async () => {
-      const res = await httpClient.get<WorkflowState[]>(`/api/admin/workflows/${workflowId}/states`);
-      return res.data;
+      const res = await httpClient.get<{ content: WorkflowState[] }>(`/admin/workflows/${workflowId}/states?size=200`);
+      return res.data.content ?? [];
     },
     enabled: !!workflowId,
   });
@@ -93,8 +93,8 @@ export function WorkflowTransitionsPanel() {
   const transitionsQuery = useQuery({
     queryKey: ["workflow-transitions", workflowId],
     queryFn: async () => {
-      const res = await httpClient.get<WorkflowTransition[]>(`/api/admin/workflows/${workflowId}/transitions`);
-      return res.data;
+      const res = await httpClient.get<{ content: WorkflowTransition[] }>(`/admin/workflows/${workflowId}/transitions?size=200`);
+      return res.data.content ?? [];
     },
     enabled: !!workflowId,
   });
@@ -118,13 +118,13 @@ export function WorkflowTransitionsPanel() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => httpClient.put(`/api/admin/workflows/transitions/${editTransition!.id}`, buildPayload()),
+    mutationFn: () => httpClient.put(`/admin/workflows/transitions/${editTransition!.id}`, buildPayload()),
     onSuccess: () => { reloadTransitions(); setDialogMode(null); showSnackbar("Transition updated.", "success"); },
     onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => httpClient.delete(`/api/admin/workflows/transitions/${deleteTarget!.id}`),
+    mutationFn: () => httpClient.delete(`/admin/workflows/transitions/${deleteTarget!.id}`),
     onSuccess: () => { reloadTransitions(); setDeleteTarget(null); showSnackbar("Transition deleted.", "success"); },
     onError: (e) => showSnackbar((e as Error).message, "error"),
   });

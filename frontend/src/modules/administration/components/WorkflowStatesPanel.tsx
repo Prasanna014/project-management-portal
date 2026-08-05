@@ -84,8 +84,8 @@ export function WorkflowStatesPanel() {
   const statesQuery = useQuery({
     queryKey: ["workflow-states", workflowId],
     queryFn: async () => {
-      const res = await httpClient.get<WorkflowState[]>(`/api/admin/workflows/${workflowId}/states`);
-      return res.data;
+      const res = await httpClient.get<{ content: WorkflowState[] }>(`/admin/workflows/${workflowId}/states?size=200`);
+      return res.data.content ?? [];
     },
     enabled: !!workflowId,
   });
@@ -110,7 +110,7 @@ export function WorkflowStatesPanel() {
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      httpClient.put(`/api/admin/workflows/states/${editState!.id}`, {
+      httpClient.put(`/admin/workflows/states/${editState!.id}`, {
         workflowId: Number(workflowId),
         stateKey: form.stateKey,
         stateName: form.stateName,
@@ -125,7 +125,7 @@ export function WorkflowStatesPanel() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => httpClient.delete(`/api/admin/workflows/states/${deleteTarget!.id}`),
+    mutationFn: () => httpClient.delete(`/admin/workflows/states/${deleteTarget!.id}`),
     onSuccess: () => { reloadStates(); setDeleteTarget(null); showSnackbar("State deleted.", "success"); },
     onError: (e) => showSnackbar((e as Error).message, "error"),
   });

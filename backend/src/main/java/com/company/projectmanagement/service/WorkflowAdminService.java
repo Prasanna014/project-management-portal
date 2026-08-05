@@ -29,11 +29,15 @@ public interface WorkflowAdminService {
 
     WorkflowStateResponseDto updateState(Long id, WorkflowStateRequestDto request);
 
+    void deleteState(Long id);
+
     List<WorkflowStateResponseDto> getWorkflowStates(Long workflowId);
 
     WorkflowTransitionResponseDto createTransition(WorkflowTransitionRequestDto request);
 
     WorkflowTransitionResponseDto updateTransition(Long id, WorkflowTransitionRequestDto request);
+
+    void deleteTransition(Long id);
 
     List<WorkflowTransitionResponseDto> getWorkflowTransitions(Long workflowId, Long fromStateId);
 

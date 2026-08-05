@@ -120,6 +120,12 @@ public class WorkflowAdminController {
         return ResponseEntity.ok(service.updateState(id, request));
     }
 
+    @DeleteMapping("/states/{id}")
+    public ResponseEntity<Void> deleteState(@PathVariable Long id) {
+        service.deleteState(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{workflowId}/transitions")
     public ResponseEntity<Map<String, Object>> getWorkflowTransitions(
             @PathVariable Long workflowId,
@@ -159,6 +165,12 @@ public class WorkflowAdminController {
             @Valid @RequestBody WorkflowTransitionRequestDto request
     ) {
         return ResponseEntity.ok(service.updateTransition(id, request));
+    }
+
+    @DeleteMapping("/transitions/{id}")
+    public ResponseEntity<Void> deleteTransition(@PathVariable Long id) {
+        service.deleteTransition(id);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/transitions/roles")
