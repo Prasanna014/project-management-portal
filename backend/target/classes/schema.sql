@@ -737,7 +737,7 @@ WITH wf AS (
     SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
 )
 INSERT INTO tracker.workflow_states (workflow_id, state_key, state_name, description, display_order, is_initial, is_terminal, active, created_at, updated_at)
-SELECT wf.id, 'OPEN', 'Open', 'Ready to be worked on', 2, false, false, true, NOW(), NOW() FROM wf
+SELECT wf.id, 'OPEN', 'Open', 'Ready to be worked on', 6, false, false, true, NOW(), NOW() FROM wf
 ON CONFLICT (workflow_id, state_key) DO UPDATE SET
     state_name = EXCLUDED.state_name,
     active = true,
