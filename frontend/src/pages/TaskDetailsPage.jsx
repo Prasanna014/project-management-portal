@@ -140,6 +140,7 @@ const STATUS_OPTIONS = [
   { value: "Open",        color: "#2563eb", bg: "#eff6ff", border: "#bfdbfe" },
   { value: "In Progress", color: "#d97706", bg: "#fffbeb", border: "#fde68a" },
   { value: "Blocked",     color: "#dc2626", bg: "#fef2f2", border: "#fecaca" },
+  { value: "Reopened",    color: "#f97316", bg: "#fff7ed", border: "#fed7aa" },
   { value: "Done",        color: "#059669", bg: "#ecfdf5", border: "#a7f3d0" },
   { value: "Completed",   color: "#7c3aed", bg: "#f5f3ff", border: "#ddd6fe" },
 ];
@@ -224,7 +225,7 @@ export default function TaskDetailsPage() {
   const mapPriorityForApi = (priority) => (priority === "Critical" ? "High" : priority);
 
 
-  const loadAll = async ({ silent = false } = {}) => {
+  const loadAll = async ({ silent = false, skipTaskRefresh = false } = {}) => {
     try {
       if (!silent) {
         setLoading(true);
@@ -233,7 +234,7 @@ export default function TaskDetailsPage() {
 
       if (usingMockData) {
         const pageData = await loadTaskDetailsPageData(taskId, currentUserId);
-        setTask(withDerivedEstimate(pageData.task) || null);
+        if (!skipTaskRefresh) setTask(withDerivedEstimate(pageData.task) || null);
         setComments(pageData.comments || []);
         setAttachments(pageData.attachments || []);
         setHistory(pageData.history || []);
@@ -249,8 +250,10 @@ export default function TaskDetailsPage() {
         import("../services/userServices"),
       ]);
 
-      const coreTask = await getTaskById(taskId);
-      setTask(withDerivedEstimate(coreTask) || null);
+      if (!skipTaskRefresh) {
+        const coreTask = await getTaskById(taskId);
+        setTask(withDerivedEstimate(coreTask) || null);
+      }
 
       const [commentsRes, attachmentsRes, historyRes, usersRes] = await Promise.allSettled([
         getComments(taskId),
@@ -272,7 +275,7 @@ export default function TaskDetailsPage() {
       }
     } catch (err) {
       setError(`Failed to load task: ${err.message}`);
-      setTask(null);
+      if (!skipTaskRefresh) setTask(null);
     } finally {
       if (!silent) {
         setLoading(false);
@@ -322,14 +325,20 @@ export default function TaskDetailsPage() {
     try {
       setOpenStatusDialog(false);
       setSubmitting(true);
-      // optimistic update so the UI reflects the new state immediately
+      // Apply optimistic update immediately so badge changes before any network call
       setTask((t) => t ? { ...t, status: selectedTransition.toStateName, workflowStateId: selectedTransition.toStateId } : t);
-      const { executeTransition } = await import("../services/taskService");
+      const { executeTransition, getTaskById } = await import("../services/taskService");
       await executeTransition(taskId, selectedTransition.id, transitionComment.trim() || null);
+      // Fetch only the task to confirm server state; if it returns stale data keep the optimistic value
+      try {
+        const fresh = await getTaskById(taskId);
+        if (fresh) setTask(withDerivedEstimate(fresh));
+      } catch { /* keep optimistic state on fetch failure */ }
       setSuccess(`Status changed to ${selectedTransition.toStateName}`);
       setSelectedTransition(null);
       setTransitionComment("");
-      loadAll({ silent: true });
+      // Reload only history/comments in background — not the task, to avoid overwriting confirmed state
+      loadAll({ silent: true, skipTaskRefresh: true });
     } catch (err) {
       setTask(snapshot);
       setError(`Failed to execute transition: ${err.message}`);

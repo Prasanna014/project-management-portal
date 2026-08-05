@@ -685,10 +685,11 @@ VALUES
 ('WAITING', 'Waiting', 'Paused for pending input', 3, '#f59e0b', false, true, NOW(), NOW()),
 ('IN_PROGRESS', 'In Progress', 'Work in progress', 4, '#2563eb', false, true, NOW(), NOW()),
 ('BLOCKED', 'Blocked', 'Cannot proceed due to hard dependency', 5, '#ef4444', false, true, NOW(), NOW()),
-('SCHEDULED', 'Scheduled', 'Planned for a future start', 6, '#6366f1', false, true, NOW(), NOW()),
-('OVERDUE', 'Overdue', 'Past target date and still unresolved', 7, '#dc2626', false, true, NOW(), NOW()),
-('DONE', 'Done', 'Work completed', 8, '#16a34a', true, true, NOW(), NOW()),
-('COMPLETED', 'Completed', 'Work completed', 9, '#22c55e', true, true, NOW(), NOW())
+('REOPENED', 'Reopened', 'Previously closed, reopened for rework', 6, '#f97316', false, true, NOW(), NOW()),
+('SCHEDULED', 'Scheduled', 'Planned for a future start', 7, '#6366f1', false, true, NOW(), NOW()),
+('OVERDUE', 'Overdue', 'Past target date and still unresolved', 8, '#dc2626', false, true, NOW(), NOW()),
+('DONE', 'Done', 'Work completed', 9, '#16a34a', true, true, NOW(), NOW()),
+('COMPLETED', 'Completed', 'Work completed', 10, '#22c55e', true, true, NOW(), NOW())
 ON CONFLICT (status_key) DO UPDATE SET
     status_name = EXCLUDED.status_name,
     active = true,
