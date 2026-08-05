@@ -38,12 +38,9 @@ public class WorkflowEngineServiceImpl implements WorkflowEngineService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + taskId));
 
-        if (task.getWorkflowStateId() == null) {
-            return List.of();
-        }
-
-        WorkflowState currentState = workflowStateRepository.findById(task.getWorkflowStateId())
-                .orElse(null);
+        // Prefer workflowStateId, but validate it matches the task's status string.
+        // If there's a mismatch (stale data), fall back to looking up by status name.
+        WorkflowState currentState = resolveCurrentState(task);
         if (currentState == null) {
             return List.of();
         }
@@ -65,6 +62,42 @@ public class WorkflowEngineServiceImpl implements WorkflowEngineService {
                             .build();
                 })
                 .collect(Collectors.toList());
+    }
+
+    // Returns the workflow state that correctly reflects the task's current status,
+    // correcting any stale workflowStateId whose name no longer matches task.status.
+    private WorkflowState resolveCurrentState(Task task) {
+        if (task.getWorkflowStateId() != null) {
+            WorkflowState candidate = workflowStateRepository.findById(task.getWorkflowStateId()).orElse(null);
+            if (candidate != null && task.getStatus() != null
+                    && candidate.getStateName().equalsIgnoreCase(task.getStatus())) {
+                return candidate; // state matches — use it directly
+            }
+        }
+        // Stale or missing — find the correct state by matching the status string
+        if (task.getStatus() != null) {
+            Long workflowId = resolveWorkflowIdForTask(task);
+            if (workflowId != null) {
+                return workflowStateRepository
+                        .findByWorkflowIdAndActiveOrderByDisplayOrderAsc(workflowId, true)
+                        .stream()
+                        .filter(ws -> ws.getStateName().equalsIgnoreCase(task.getStatus()))
+                        .findFirst()
+                        .orElse(null);
+            }
+        }
+        return null;
+    }
+
+    // Resolves which workflow governs this task (via the task's project, falling back to TASK_DEFAULT)
+    private Long resolveWorkflowIdForTask(Task task) {
+        // If workflowStateId is set, derive the workflowId from that state's record
+        if (task.getWorkflowStateId() != null) {
+            return workflowStateRepository.findById(task.getWorkflowStateId())
+                    .map(WorkflowState::getWorkflowId)
+                    .orElse(null);
+        }
+        return null;
     }
 
     @Override

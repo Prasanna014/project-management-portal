@@ -731,6 +731,17 @@ ON CONFLICT (workflow_id, state_key) DO UPDATE SET
     active = true,
     updated_at = NOW();
 
+-- OPEN mirrors the legacy "Open" status string tasks already have
+WITH wf AS (
+    SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
+)
+INSERT INTO tracker.workflow_states (workflow_id, state_key, state_name, description, display_order, is_initial, is_terminal, active, created_at, updated_at)
+SELECT wf.id, 'OPEN', 'Open', 'Ready to be worked on', 2, false, false, true, NOW(), NOW() FROM wf
+ON CONFLICT (workflow_id, state_key) DO UPDATE SET
+    state_name = EXCLUDED.state_name,
+    active = true,
+    updated_at = NOW();
+
 WITH wf AS (
     SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
 )
@@ -769,6 +780,7 @@ SELECT wf.id, 'BLOCKED', 'Blocked', 'Ticket blocked waiting on dependency', 5, f
 ON CONFLICT (workflow_id, state_key) DO UPDATE SET
     state_name = EXCLUDED.state_name, active = true, updated_at = NOW();
 
+-- START: To Do → In Progress
 WITH wf AS (
     SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
 ),
@@ -777,15 +789,26 @@ st_todo AS (
 ),
 st_progress AS (
     SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'IN_PROGRESS'
-),
-st_done AS (
-    SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'DONE'
 )
 INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
 SELECT (SELECT id FROM wf), (SELECT id FROM st_todo), (SELECT id FROM st_progress), 'START', 'Start Progress', false, true, NOW(), NOW()
 ON CONFLICT (workflow_id, transition_key) DO UPDATE SET
     active = true,
     updated_at = NOW();
+
+-- START_FROM_OPEN: Open → In Progress (covers tasks with legacy "Open" status)
+WITH wf AS (
+    SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
+),
+st_open AS (
+    SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'OPEN'
+),
+st_progress AS (
+    SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'IN_PROGRESS'
+)
+INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
+SELECT (SELECT id FROM wf), (SELECT id FROM st_open), (SELECT id FROM st_progress), 'START_FROM_OPEN', 'Start Progress', false, true, NOW(), NOW()
+ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, updated_at = NOW();
 
 WITH wf AS (
     SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
@@ -854,10 +877,49 @@ UPDATE tracker.tasks
 SET
     status_id = COALESCE(status_id, (SELECT id FROM tracker.task_statuses WHERE status_key = 'TODO')),
     priority_id = COALESCE(priority_id, (SELECT id FROM tracker.task_priorities WHERE priority_key = 'MEDIUM')),
-    category_id = COALESCE(category_id, (SELECT id FROM tracker.task_categories WHERE category_key = 'GENERAL')),
-    workflow_state_id = COALESCE(workflow_state_id, (
-        SELECT ws.id
+    category_id = COALESCE(category_id, (SELECT id FROM tracker.task_categories WHERE category_key = 'GENERAL'));
+
+-- Sync workflow_state_id to match the task's actual status string.
+-- This runs every time schema.sql is applied so stale/mismatched states are corrected.
+UPDATE tracker.tasks t
+SET workflow_state_id = (
+    SELECT ws.id
+    FROM tracker.workflow_states ws
+    JOIN tracker.workflow_definitions wd ON wd.id = ws.workflow_id
+    WHERE wd.workflow_key = 'TASK_DEFAULT'
+      AND LOWER(ws.state_name) = LOWER(t.status)
+    LIMIT 1
+)
+WHERE (
+    -- no state assigned yet
+    t.workflow_state_id IS NULL
+    OR
+    -- state is assigned but its name no longer matches the task's status string
+    NOT EXISTS (
+        SELECT 1
         FROM tracker.workflow_states ws
         JOIN tracker.workflow_definitions wd ON wd.id = ws.workflow_id
-        WHERE wd.workflow_key = 'TASK_DEFAULT' AND ws.state_key = 'TODO'
-    ));
+        WHERE ws.id = t.workflow_state_id
+          AND wd.workflow_key = 'TASK_DEFAULT'
+          AND LOWER(ws.state_name) = LOWER(t.status)
+    )
+)
+AND EXISTS (
+    -- only update if a matching workflow state actually exists
+    SELECT 1
+    FROM tracker.workflow_states ws
+    JOIN tracker.workflow_definitions wd ON wd.id = ws.workflow_id
+    WHERE wd.workflow_key = 'TASK_DEFAULT'
+      AND LOWER(ws.state_name) = LOWER(t.status)
+);
+
+-- Fallback: any task that still has no workflow_state_id gets the initial (To Do) state
+UPDATE tracker.tasks t
+SET workflow_state_id = (
+    SELECT ws.id
+    FROM tracker.workflow_states ws
+    JOIN tracker.workflow_definitions wd ON wd.id = ws.workflow_id
+    WHERE wd.workflow_key = 'TASK_DEFAULT' AND ws.is_initial = true
+    LIMIT 1
+)
+WHERE t.workflow_state_id IS NULL;
