@@ -11,6 +11,7 @@ import com.company.projectmanagement.repository.TaskPriorityRepository;
 import com.company.projectmanagement.repository.TaskRepository;
 import com.company.projectmanagement.repository.TaskStatusRepository;
 import com.company.projectmanagement.repository.WorkflowStateRepository;
+import com.company.projectmanagement.repository.ProjectRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,8 @@ class TaskServiceTest {
     private TaskCategoryRepository taskCategoryRepository;
     @Mock
     private WorkflowStateRepository workflowStateRepository;
+    @Mock
+    private ProjectRepository projectRepository;
 
     private TaskService taskService;
 
@@ -49,7 +52,8 @@ class TaskServiceTest {
                 taskStatusRepository,
                 taskPriorityRepository,
                 taskCategoryRepository,
-                workflowStateRepository
+                workflowStateRepository,
+                projectRepository
         );
     }
 
