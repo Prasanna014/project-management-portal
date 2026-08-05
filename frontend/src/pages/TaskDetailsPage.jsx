@@ -193,6 +193,9 @@ export default function TaskDetailsPage() {
  
   const [activeTab, setActiveTab] = useState(0);
   const [openStatusDialog,    setOpenStatusDialog]    = useState(false);
+  const [availableTransitions,  setAvailableTransitions]  = useState([]);
+  const [selectedTransition,    setSelectedTransition]    = useState(null);
+  const [transitionComment,     setTransitionComment]     = useState("");
   const [openPriorityDialog,  setOpenPriorityDialog]  = useState(false);
   const [openOwnershipDialog, setOpenOwnershipDialog] = useState(false);
   const [openDeleteDialog,    setOpenDeleteDialog]    = useState(false);
@@ -296,17 +299,40 @@ export default function TaskDetailsPage() {
   }, [comments.length]);
 
 
-  const handleStatusChange = async (newStatus) => {
+  const handleOpenStatusDialog = async () => {
+    try {
+      const { getAvailableTransitions } = await import("../services/taskService");
+      const transitions = await getAvailableTransitions(taskId);
+      setAvailableTransitions(transitions || []);
+    } catch {
+      setAvailableTransitions([]);
+    }
+    setSelectedTransition(null);
+    setTransitionComment("");
+    setOpenStatusDialog(true);
+  };
+
+  const handleStatusChange = async () => {
+    if (!selectedTransition) return;
+    if (selectedTransition.requiresComment && !transitionComment.trim()) {
+      setError("A comment is required for this transition.");
+      return;
+    }
     const snapshot = task;
     try {
       setOpenStatusDialog(false);
       setSubmitting(true);
-      setTask((t) => (t ? { ...t, statusId: null, status: newStatus } : t));
-      await updateTaskDetails(taskId, { ...task, statusId: null, status: newStatus }, currentUserId);
-      setSuccess(`Status changed to ${newStatus}`);
+      // optimistic update so the UI reflects the new state immediately
+      setTask((t) => t ? { ...t, status: selectedTransition.toStateName, workflowStateId: selectedTransition.toStateId } : t);
+      const { executeTransition } = await import("../services/taskService");
+      await executeTransition(taskId, selectedTransition.id, transitionComment.trim() || null);
+      setSuccess(`Status changed to ${selectedTransition.toStateName}`);
+      setSelectedTransition(null);
+      setTransitionComment("");
+      loadAll({ silent: true });
     } catch (err) {
       setTask(snapshot);
-      setError(`Failed to update status: ${err.message}`);
+      setError(`Failed to execute transition: ${err.message}`);
     } finally { setSubmitting(false); }
   };
 
@@ -847,7 +873,7 @@ export default function TaskDetailsPage() {
               Edit Ticket
             </Button>
             <Button variant="outlined" size="small" startIcon={<SwapHorizIcon fontSize="small" />}
-              onClick={() => setOpenStatusDialog(true)}
+              onClick={handleOpenStatusDialog}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    borderColor: "#E2E8F0", color: "#374151",
                    "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
@@ -1222,22 +1248,56 @@ export default function TaskDetailsPage() {
 
       {/* ── DIALOGS ─────────────────────────────────────────────────────── */}
 
+      {/* STATUS CHANGE DIALOG — driven by workflow engine */}
       <Dialog open={openStatusDialog} onClose={() => setOpenStatusDialog(false)}
-        PaperProps={{ sx: { borderRadius: "12px", minWidth: 300 } }}>
+        PaperProps={{ sx: { borderRadius: "12px", minWidth: 340 } }}>
         <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem", pb: 1 }}>Change Status</DialogTitle>
         <DialogContent>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
-            {["To Do", "Open", "In Progress", "Blocked", "Done", "Completed"].map((s) => (
-              <Button key={s} fullWidth
-                variant={task.status === s ? "contained" : "outlined"}
-                onClick={() => handleStatusChange(s)} disabled={submitting}
-                sx={{ borderRadius: "8px", textTransform: "none", justifyContent: "flex-start", fontWeight: 500 }}
-              >
-                {s}
-              </Button>
-            ))}
-          </Box>
+          {availableTransitions.length === 0 ? (
+            <Typography sx={{ color: "text.secondary", fontSize: "0.9rem", mt: 0.5 }}>
+              No transitions available from the current state.
+            </Typography>
+          ) : (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
+              {availableTransitions.map((t) => (
+                <Button key={t.id} fullWidth
+                  variant={selectedTransition?.id === t.id ? "contained" : "outlined"}
+                  onClick={() => setSelectedTransition(t)}
+                  disabled={submitting}
+                  sx={{
+                    borderRadius: "8px", textTransform: "none",
+                    justifyContent: "space-between", fontWeight: 500,
+                    ...(selectedTransition?.id === t.id ? { bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } } : {})
+                  }}
+                >
+                  <span>{t.transitionName}</span>
+                  <span style={{ fontSize: "0.78rem", opacity: 0.7 }}>→ {t.toStateName}</span>
+                </Button>
+              ))}
+
+              {selectedTransition && (
+                <TextField
+                  multiline rows={2} size="small" fullWidth
+                  placeholder={selectedTransition.requiresComment ? "Comment required *" : "Comment (optional)"}
+                  value={transitionComment}
+                  onChange={(e) => setTransitionComment(e.target.value)}
+                  error={selectedTransition.requiresComment && !transitionComment.trim()}
+                  helperText={selectedTransition.requiresComment ? "This transition requires a comment" : ""}
+                  sx={{ mt: 0.5 }}
+                />
+              )}
+            </Box>
+          )}
         </DialogContent>
+        <Box sx={{ px: 3, pb: 2, pt: 0.5, display: "flex", gap: 1, justifyContent: "flex-end" }}>
+          <Button variant="outlined" sx={{ borderRadius: "8px", textTransform: "none" }}
+            onClick={() => setOpenStatusDialog(false)}>Cancel</Button>
+          <Button variant="contained" sx={{ borderRadius: "8px", textTransform: "none", bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}
+            onClick={handleStatusChange}
+            disabled={!selectedTransition || submitting || (selectedTransition?.requiresComment && !transitionComment.trim())}>
+            {submitting ? "Applying..." : "Apply"}
+          </Button>
+        </Box>
       </Dialog>
 
       <Dialog open={openPriorityDialog} onClose={() => setOpenPriorityDialog(false)}

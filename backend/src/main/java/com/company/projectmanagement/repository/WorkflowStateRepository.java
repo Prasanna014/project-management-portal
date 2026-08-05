@@ -14,5 +14,6 @@ public interface WorkflowStateRepository extends JpaRepository<WorkflowState, Lo
 
     Optional<WorkflowState> findByWorkflowIdAndStateKey(Long workflowId, String stateKey);
 
+    // Returns the single state marked as initial for a given workflow
     Optional<WorkflowState> findByWorkflowIdAndInitialTrue(Long workflowId);
 }

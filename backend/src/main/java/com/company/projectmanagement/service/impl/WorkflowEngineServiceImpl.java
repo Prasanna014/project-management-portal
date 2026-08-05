@@ -11,6 +11,7 @@ import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.ActivityHistoryRepository;
 import com.company.projectmanagement.repository.TaskCommentRepository;
 import com.company.projectmanagement.repository.TaskRepository;
+import com.company.projectmanagement.repository.TaskStatusRepository;
 import com.company.projectmanagement.repository.WorkflowStateRepository;
 import com.company.projectmanagement.repository.WorkflowTransitionRepository;
 import com.company.projectmanagement.service.WorkflowEngineService;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 public class WorkflowEngineServiceImpl implements WorkflowEngineService {
 
     private final TaskRepository taskRepository;
+    private final TaskStatusRepository taskStatusRepository;
     private final WorkflowStateRepository workflowStateRepository;
     private final WorkflowTransitionRepository workflowTransitionRepository;
     private final ActivityHistoryRepository activityHistoryRepository;
@@ -95,6 +97,9 @@ public class WorkflowEngineServiceImpl implements WorkflowEngineService {
 
         task.setWorkflowStateId(toState.getId());
         task.setStatus(toState.getStateName());
+        // keep statusId in sync so mapToDto() returns the correct status name
+        taskStatusRepository.findByStatusName(toState.getStateName())
+                .ifPresent(ts -> task.setStatusId(ts.getId()));
         taskRepository.save(task);
 
         activityHistoryRepository.save(ActivityHistory.builder()

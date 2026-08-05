@@ -9,6 +9,7 @@ import com.company.projectmanagement.entity.TaskStatus;
 import com.company.projectmanagement.entity.WorkflowState;
 import com.company.projectmanagement.exception.BadRequestException;
 import com.company.projectmanagement.exception.ResourceNotFoundException;
+import com.company.projectmanagement.repository.ProjectRepository;
 import com.company.projectmanagement.repository.TaskCategoryRepository;
 import com.company.projectmanagement.repository.TaskPriorityRepository;
 import com.company.projectmanagement.repository.TaskRepository;
@@ -32,6 +33,7 @@ public class TaskService {
     private final TaskPriorityRepository taskPriorityRepository;
     private final TaskCategoryRepository taskCategoryRepository;
     private final WorkflowStateRepository workflowStateRepository;
+    private final ProjectRepository projectRepository;
 
     /* ================= GET ALL ================= */
     public List<TaskDto> getAllTasks() {
@@ -123,6 +125,11 @@ public class TaskService {
     private Task mapToEntity(TaskDto dto) {
         ResolvedTaskCatalog resolved = resolveCatalogValues(dto, false);
 
+        // If no workflow state supplied, inherit the initial state from the project's workflow
+        Long workflowStateId = resolved.workflowStateId() != null
+                ? resolved.workflowStateId()
+                : resolveInitialWorkflowStateForProject(dto.getProjectId());
+
         return Task.builder()
                 .taskNo(dto.getTaskNo())
                 .projectId(dto.getProjectId())
@@ -133,7 +140,7 @@ public class TaskService {
                 .statusId(resolved.statusId())
                 .status(resolved.statusName())
                 .categoryId(resolved.categoryId())
-                .workflowStateId(resolved.workflowStateId())
+                .workflowStateId(workflowStateId)
                 .ownerId(dto.getOwnerId())
                 .targetDate(dto.getTargetDate())
                 .dateResolved(dto.getDateResolved())
@@ -141,6 +148,16 @@ public class TaskService {
                 .estimatedHours(dto.getEstimatedHours())
                 .loggedHours(dto.getLoggedHours())
                 .build();
+    }
+
+    // Looks up the project's assigned workflow and returns its initial state id
+    private Long resolveInitialWorkflowStateForProject(Long projectId) {
+        if (projectId == null) return null;
+        return projectRepository.findById(projectId)
+                .map(p -> p.getWorkflowId())
+                .flatMap(wfId -> workflowStateRepository.findByWorkflowIdAndInitialTrue(wfId))
+                .map(WorkflowState::getId)
+                .orElse(null);
     }
 
     private ResolvedTaskCatalog resolveCatalogValues(TaskDto dto, boolean allowNullsOnUpdate) {

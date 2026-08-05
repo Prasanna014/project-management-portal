@@ -24,3 +24,13 @@ export const updateTask = (id, task) => {
 export const deleteTask = (id) => {
   return API.delete(`/tasks/${id}`);
 };
+
+// ✅ WORKFLOW: get transitions valid from the task's current state
+export const getAvailableTransitions = (taskId) => {
+  return API.get(`/tasks/${taskId}/workflow/transitions`).then((res) => res.data);
+};
+
+// ✅ WORKFLOW: execute a transition; comment required when requiresComment=true
+export const executeTransition = (taskId, transitionId, comment) => {
+  return API.post(`/tasks/${taskId}/workflow/transition`, { transitionId, comment }).then((res) => res.data);
+};

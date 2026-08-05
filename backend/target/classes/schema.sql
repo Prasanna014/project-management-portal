@@ -751,6 +751,24 @@ ON CONFLICT (workflow_id, state_key) DO UPDATE SET
     active = true,
     updated_at = NOW();
 
+-- REOPENED: previously closed; is_terminal=false so work can resume
+WITH wf AS (
+    SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
+)
+INSERT INTO tracker.workflow_states (workflow_id, state_key, state_name, description, display_order, is_initial, is_terminal, active, created_at, updated_at)
+SELECT wf.id, 'REOPENED', 'Reopened', 'Previously closed, reopened for rework', 4, false, false, true, NOW(), NOW() FROM wf
+ON CONFLICT (workflow_id, state_key) DO UPDATE SET
+    state_name = EXCLUDED.state_name, active = true, updated_at = NOW();
+
+-- BLOCKED: stuck waiting on external dependency
+WITH wf AS (
+    SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
+)
+INSERT INTO tracker.workflow_states (workflow_id, state_key, state_name, description, display_order, is_initial, is_terminal, active, created_at, updated_at)
+SELECT wf.id, 'BLOCKED', 'Blocked', 'Ticket blocked waiting on dependency', 5, false, false, true, NOW(), NOW() FROM wf
+ON CONFLICT (workflow_id, state_key) DO UPDATE SET
+    state_name = EXCLUDED.state_name, active = true, updated_at = NOW();
+
 WITH wf AS (
     SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'
 ),
@@ -783,6 +801,38 @@ SELECT (SELECT id FROM wf), (SELECT id FROM st_progress), (SELECT id FROM st_don
 ON CONFLICT (workflow_id, transition_key) DO UPDATE SET
     active = true,
     updated_at = NOW();
+
+-- REOPEN: Done → Reopened; requires comment explaining why
+WITH wf AS (SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'),
+st_done     AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'DONE'),
+st_reopened AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'REOPENED')
+INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
+SELECT (SELECT id FROM wf), (SELECT id FROM st_done), (SELECT id FROM st_reopened), 'REOPEN', 'Reopen Ticket', true, true, NOW(), NOW()
+ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, requires_comment = true, updated_at = NOW();
+
+-- RESTART: Reopened → In Progress
+WITH wf AS (SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'),
+st_reopened AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'REOPENED'),
+st_progress AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'IN_PROGRESS')
+INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
+SELECT (SELECT id FROM wf), (SELECT id FROM st_reopened), (SELECT id FROM st_progress), 'RESTART', 'Restart Work', false, true, NOW(), NOW()
+ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, updated_at = NOW();
+
+-- BLOCK: In Progress → Blocked; requires comment describing the blocker
+WITH wf AS (SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'),
+st_progress AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'IN_PROGRESS'),
+st_blocked  AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'BLOCKED')
+INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
+SELECT (SELECT id FROM wf), (SELECT id FROM st_progress), (SELECT id FROM st_blocked), 'BLOCK', 'Mark as Blocked', true, true, NOW(), NOW()
+ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, requires_comment = true, updated_at = NOW();
+
+-- UNBLOCK: Blocked → In Progress
+WITH wf AS (SELECT id FROM tracker.workflow_definitions WHERE workflow_key = 'TASK_DEFAULT'),
+st_blocked  AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'BLOCKED'),
+st_progress AS (SELECT id FROM tracker.workflow_states WHERE workflow_id = (SELECT id FROM wf) AND state_key = 'IN_PROGRESS')
+INSERT INTO tracker.workflow_transitions (workflow_id, from_state_id, to_state_id, transition_key, transition_name, requires_comment, active, created_at, updated_at)
+SELECT (SELECT id FROM wf), (SELECT id FROM st_blocked), (SELECT id FROM st_progress), 'UNBLOCK', 'Unblock', false, true, NOW(), NOW()
+ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, updated_at = NOW();
 
 WITH role_admin AS (
     SELECT id FROM tracker.roles WHERE role_key = 'SUPER_ADMIN'

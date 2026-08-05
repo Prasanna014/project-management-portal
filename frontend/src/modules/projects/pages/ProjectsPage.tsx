@@ -32,6 +32,7 @@ import { EmptyState } from "@shared/ui/states/EmptyState";
 import { ErrorState } from "@shared/ui/states/ErrorState";
 import { LoadingState } from "@shared/ui/states/LoadingState";
 import { createProject, fetchProjects } from "@modules/projects/services/projectsApi";
+import { fetchActiveWorkflows } from "@modules/administration/services/workflowsApi";
 import { ConfirmActionDialog } from "@shared/ui/feedback/ConfirmActionDialog";
 import { PageSnackbar, type SnackbarSeverity } from "@shared/ui/feedback/PageSnackbar";
 import { useAuth } from "@features/auth/context/AuthContext";
@@ -48,6 +49,7 @@ type ProjectFormState = {
   projectName: string;
   description: string;
   active: boolean;
+  workflowId?: number;
 };
 
 const INITIAL_FORM: ProjectFormState = {
@@ -55,6 +57,7 @@ const INITIAL_FORM: ProjectFormState = {
   projectName: "",
   description: "",
   active: true,
+  workflowId: undefined,
 };
 
 function formatDate(value?: string) {
@@ -88,6 +91,11 @@ export function ProjectsPage() {
     enabled: canRead,
   });
 
+  const workflowsQuery = useQuery({
+    queryKey: ["workflows-active"],
+    queryFn: fetchActiveWorkflows,
+  });
+
   if (!canRead) {
     return <Alert severity="warning">You do not have read permission for projects.</Alert>;
   }
@@ -115,6 +123,7 @@ export function ProjectsPage() {
         projectName: form.projectName.trim(),
         description: form.description.trim() || undefined,
         active: form.active,
+        workflowId: form.workflowId,
       });
       setCreateDialogOpen(false);
       setForm(INITIAL_FORM);
@@ -499,6 +508,25 @@ export function ProjectsPage() {
               >
                 <MenuItem value="active">Active</MenuItem>
                 <MenuItem value="inactive">Inactive</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={12}>
+              <TextField
+                select
+                fullWidth
+                label="Workflow"
+                value={form.workflowId ?? ""}
+                onChange={(event) => setForm((current) => ({
+                  ...current,
+                  workflowId: event.target.value ? Number(event.target.value) : undefined,
+                }))}
+                helperText="Controls which status transitions are allowed for tasks in this project"
+                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 3, bgcolor: '#ffffff' } }}
+              >
+                <MenuItem value="">No workflow</MenuItem>
+                {(workflowsQuery.data ?? []).map((wf) => (
+                  <MenuItem key={wf.id} value={wf.id}>{wf.workflowName}</MenuItem>
+                ))}
               </TextField>
             </Grid>
           </Grid>
