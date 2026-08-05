@@ -1,0 +1,15 @@
+infrastructureDefinition:
+  name: testing
+  identifier: testing
+  orgIdentifier: default
+  projectIdentifier: default_project
+  environmentRef: dev
+  deploymentType: Ssh
+  type: Pdc
+  spec:
+    connectorRef: LinuxVM
+    credentialsRef: deplyment
+    hostFilter:
+      type: All
+      spec: {}
+  allowSimultaneousDeployments: false
