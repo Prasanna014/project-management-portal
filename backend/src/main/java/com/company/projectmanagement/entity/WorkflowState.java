@@ -64,6 +64,9 @@ public class WorkflowState {
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "color", length = 20)
+    private String color;
+
     @NotNull
     @Column(name = "display_order", nullable = false)
     private Integer displayOrder;

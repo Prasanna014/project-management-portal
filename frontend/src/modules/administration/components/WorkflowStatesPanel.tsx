@@ -39,6 +39,7 @@ type WorkflowState = {
   stateKey: string;
   stateName: string;
   description?: string;
+  color?: string;
   displayOrder: number;
   initial: boolean;
   terminal: boolean;
@@ -49,6 +50,7 @@ type StateForm = {
   stateKey: string;
   stateName: string;
   description: string;
+  color: string;
   displayOrder: string;
   initial: boolean;
   terminal: boolean;
@@ -56,7 +58,7 @@ type StateForm = {
 };
 
 const emptyStateForm: StateForm = {
-  stateKey: "", stateName: "", description: "", displayOrder: "0",
+  stateKey: "", stateName: "", description: "", color: "#6b7280", displayOrder: "0",
   initial: false, terminal: false, active: true,
 };
 
@@ -99,6 +101,7 @@ export function WorkflowStatesPanel() {
         stateKey: form.stateKey,
         stateName: form.stateName,
         description: form.description || null,
+        color: form.color || "#6b7280",
         displayOrder: Number(form.displayOrder),
         initial: form.initial,
         terminal: form.terminal,
@@ -115,6 +118,7 @@ export function WorkflowStatesPanel() {
         stateKey: form.stateKey,
         stateName: form.stateName,
         description: form.description || null,
+        color: form.color || "#6b7280",
         displayOrder: Number(form.displayOrder),
         initial: form.initial,
         terminal: form.terminal,
@@ -142,6 +146,7 @@ export function WorkflowStatesPanel() {
       stateKey: state.stateKey,
       stateName: state.stateName,
       description: state.description ?? "",
+      color: state.color ?? "#6b7280",
       displayOrder: String(state.displayOrder),
       initial: state.initial,
       terminal: state.terminal,
@@ -191,8 +196,7 @@ export function WorkflowStatesPanel() {
             <Table size="small">
               <TableHead>
                 <TableRow>
-                  <TableCell>ID</TableCell>
-                  <TableCell>State Name</TableCell>
+                  <TableCell>ID</TableCell>                    <TableCell>Color</TableCell>                  <TableCell>State Name</TableCell>
                   <TableCell>Key</TableCell>
                   <TableCell>Order</TableCell>
                   <TableCell>Initial</TableCell>
@@ -204,8 +208,9 @@ export function WorkflowStatesPanel() {
               <TableBody>
                 {states.map((state) => (
                   <TableRow key={state.id} hover>
-                    <TableCell>{state.id}</TableCell>
-                    <TableCell>{state.stateName}</TableCell>
+                    <TableCell>{state.id}</TableCell>                    <TableCell>
+                      <Box sx={{ width: 22, height: 22, borderRadius: "50%", bgcolor: state.color ?? "#6b7280", border: "1px solid rgba(0,0,0,0.15)" }} />
+                    </TableCell>                    <TableCell>{state.stateName}</TableCell>
                     <TableCell>{state.stateKey}</TableCell>
                     <TableCell>{state.displayOrder}</TableCell>
                     <TableCell><Chip size="small" label={state.initial ? "Yes" : "No"} color={state.initial ? "primary" : "default"} /></TableCell>
@@ -237,6 +242,14 @@ export function WorkflowStatesPanel() {
             <TextField size="small" fullWidth required label="State Key" value={form.stateKey} onChange={(e) => setForm((f) => ({ ...f, stateKey: e.target.value }))} />
             <TextField size="small" fullWidth required label="State Name" value={form.stateName} onChange={(e) => setForm((f) => ({ ...f, stateName: e.target.value }))} />
             <TextField size="small" fullWidth label="Description" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: "block" }}>Color (hex)</Typography>
+              <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+                <input type="color" value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} style={{ width: 44, height: 36, padding: 2, cursor: "pointer", border: "1px solid #ccc", borderRadius: 4 }} />
+                <TextField size="small" value={form.color} onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))} sx={{ width: 130 }} placeholder="#6b7280" />
+                <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: form.color, border: "1px solid rgba(0,0,0,0.2)" }} />
+              </Box>
+            </Box>
             <TextField size="small" fullWidth type="number" label="Display Order" value={form.displayOrder} onChange={(e) => setForm((f) => ({ ...f, displayOrder: e.target.value }))} />
             <FormControlLabel control={<Switch checked={form.initial} onChange={(e) => setForm((f) => ({ ...f, initial: e.target.checked }))} />} label="Initial State" />
             <FormControlLabel control={<Switch checked={form.terminal} onChange={(e) => setForm((f) => ({ ...f, terminal: e.target.checked }))} />} label="Terminal State" />

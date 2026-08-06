@@ -14,7 +14,9 @@ public class WorkflowTransitionAvailableDto {
     private Long id;
     private String transitionKey;
     private String transitionName;
+    private String buttonLabel;
     private Long toStateId;
     private String toStateName;
+    private String toStateColor;
     private Boolean requiresComment;
 }

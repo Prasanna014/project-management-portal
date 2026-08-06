@@ -182,6 +182,7 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
         existing.setStateKey(request.getStateKey());
         existing.setStateName(request.getStateName());
         existing.setDescription(request.getDescription());
+        if (request.getColor() != null) existing.setColor(request.getColor());
         if (request.getDisplayOrder() != null) {
             existing.setDisplayOrder(request.getDisplayOrder());
         }
@@ -245,6 +246,8 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
         existing.setToStateId(request.getToStateId());
         existing.setTransitionKey(request.getTransitionKey());
         existing.setTransitionName(request.getTransitionName());
+        if (request.getButtonLabel() != null) existing.setButtonLabel(request.getButtonLabel());
+        if (request.getDisplayOrder() != null) existing.setDisplayOrder(request.getDisplayOrder());
         if (request.getRequiresComment() != null) {
             existing.setRequiresComment(request.getRequiresComment());
         }
@@ -353,6 +356,7 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
                 .stateKey(request.getStateKey())
                 .stateName(request.getStateName())
                 .description(request.getDescription())
+                .color(request.getColor())
                 .displayOrder(request.getDisplayOrder())
                 .initial(request.getInitial())
                 .terminal(request.getTerminal())
@@ -367,6 +371,7 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
                 .stateKey(entity.getStateKey())
                 .stateName(entity.getStateName())
                 .description(entity.getDescription())
+                .color(entity.getColor())
                 .displayOrder(entity.getDisplayOrder())
                 .initial(entity.getInitial())
                 .terminal(entity.getTerminal())
@@ -384,19 +389,29 @@ public class WorkflowAdminServiceImpl implements WorkflowAdminService {
                 .toStateId(request.getToStateId())
                 .transitionKey(request.getTransitionKey())
                 .transitionName(request.getTransitionName())
+                .buttonLabel(request.getButtonLabel())
+                .displayOrder(request.getDisplayOrder() != null ? request.getDisplayOrder() : 0)
                 .requiresComment(request.getRequiresComment())
                 .active(request.getActive())
                 .build();
     }
 
     private WorkflowTransitionResponseDto mapTransitionResponse(WorkflowTransition entity) {
+        String fromStateName = workflowStateRepository.findById(entity.getFromStateId())
+                .map(WorkflowState::getStateName).orElse(null);
+        WorkflowState toState = workflowStateRepository.findById(entity.getToStateId()).orElse(null);
         return WorkflowTransitionResponseDto.builder()
                 .id(entity.getId())
                 .workflowId(entity.getWorkflowId())
                 .fromStateId(entity.getFromStateId())
+                .fromStateName(fromStateName)
                 .toStateId(entity.getToStateId())
+                .toStateName(toState != null ? toState.getStateName() : null)
+                .toStateColor(toState != null ? toState.getColor() : null)
                 .transitionKey(entity.getTransitionKey())
                 .transitionName(entity.getTransitionName())
+                .buttonLabel(entity.getButtonLabel())
+                .displayOrder(entity.getDisplayOrder())
                 .requiresComment(entity.getRequiresComment())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())

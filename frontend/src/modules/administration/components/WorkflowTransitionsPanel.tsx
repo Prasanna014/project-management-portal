@@ -33,7 +33,7 @@ import { EmptyState } from "@shared/ui/states/EmptyState";
 import { ConfirmActionDialog } from "@shared/ui/feedback/ConfirmActionDialog";
 
 type WorkflowOption = { id: number; workflowName: string; workflowKey: string };
-type WorkflowState = { id: number; stateName: string; stateKey: string };
+type WorkflowState = { id: number; stateName: string; stateKey: string; color?: string };
 type WorkflowTransition = {
   id: number;
   workflowId: number;
@@ -41,8 +41,11 @@ type WorkflowTransition = {
   fromStateName?: string;
   toStateId: number;
   toStateName?: string;
+  toStateColor?: string;
   transitionKey: string;
   transitionName: string;
+  buttonLabel?: string;
+  displayOrder?: number;
   requiresComment: boolean;
   active: boolean;
 };
@@ -52,12 +55,14 @@ type TransitionForm = {
   toStateId: string;
   transitionKey: string;
   transitionName: string;
+  buttonLabel: string;
+  displayOrder: string;
   requiresComment: boolean;
   active: boolean;
 };
 
 const emptyForm: TransitionForm = {
-  fromStateId: "", toStateId: "", transitionKey: "", transitionName: "", requiresComment: false, active: true,
+  fromStateId: "", toStateId: "", transitionKey: "", transitionName: "", buttonLabel: "", displayOrder: "0", requiresComment: false, active: true,
 };
 
 export function WorkflowTransitionsPanel() {
@@ -107,6 +112,8 @@ export function WorkflowTransitionsPanel() {
     toStateId: Number(form.toStateId),
     transitionKey: form.transitionKey,
     transitionName: form.transitionName,
+    buttonLabel: form.buttonLabel || null,
+    displayOrder: Number(form.displayOrder) || 0,
     requiresComment: form.requiresComment,
     active: form.active,
   });
@@ -135,7 +142,7 @@ export function WorkflowTransitionsPanel() {
   const handleOpenCreate = () => { setForm({ ...emptyForm }); setFormError(null); setDialogMode("create"); };
   const handleOpenEdit = (t: WorkflowTransition) => {
     setEditTransition(t);
-    setForm({ fromStateId: String(t.fromStateId), toStateId: String(t.toStateId), transitionKey: t.transitionKey, transitionName: t.transitionName, requiresComment: t.requiresComment, active: t.active });
+    setForm({ fromStateId: String(t.fromStateId), toStateId: String(t.toStateId), transitionKey: t.transitionKey, transitionName: t.transitionName, buttonLabel: t.buttonLabel ?? "", displayOrder: String(t.displayOrder ?? 0), requiresComment: t.requiresComment, active: t.active });
     setFormError(null);
     setDialogMode("edit");
   };
@@ -179,21 +186,28 @@ export function WorkflowTransitionsPanel() {
                   <TableCell>ID</TableCell>
                   <TableCell>From State</TableCell>
                   <TableCell>To State</TableCell>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Key</TableCell>
+                  <TableCell>Transition Name</TableCell>
+                  <TableCell>Button Label</TableCell>
+                  <TableCell>Order</TableCell>
                   <TableCell>Comment Req.</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {transitions.map((t) => (
+                  {transitions.map((t) => (
                   <TableRow key={t.id} hover>
                     <TableCell>{t.id}</TableCell>
                     <TableCell>{t.fromStateName ?? stateName(t.fromStateId)}</TableCell>
-                    <TableCell>{t.toStateName ?? stateName(t.toStateId)}</TableCell>
+                    <TableCell>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.8 }}>
+                        {t.toStateColor && <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: t.toStateColor, flexShrink: 0 }} />}
+                        {t.toStateName ?? stateName(t.toStateId)}
+                      </Box>
+                    </TableCell>
                     <TableCell>{t.transitionName}</TableCell>
-                    <TableCell>{t.transitionKey}</TableCell>
+                    <TableCell>{t.buttonLabel || <span style={{ color: "#aaa" }}>—</span>}</TableCell>
+                    <TableCell>{t.displayOrder ?? 0}</TableCell>
                     <TableCell><Chip size="small" label={t.requiresComment ? "Yes" : "No"} /></TableCell>
                     <TableCell><Chip size="small" label={t.active ? "Active" : "Inactive"} color={t.active ? "success" : "default"} /></TableCell>
                     <TableCell align="right">
@@ -228,7 +242,9 @@ export function WorkflowTransitionsPanel() {
               {states.map((s) => <MenuItem key={s.id} value={String(s.id)}>{s.stateName}</MenuItem>)}
             </TextField>
             <TextField size="small" fullWidth required label="Transition Key" value={form.transitionKey} onChange={(e) => setForm((f) => ({ ...f, transitionKey: e.target.value }))} />
-            <TextField size="small" fullWidth required label="Transition Name" value={form.transitionName} onChange={(e) => setForm((f) => ({ ...f, transitionName: e.target.value }))} />
+            <TextField size="small" fullWidth required label="Transition Name" value={form.transitionName} onChange={(e) => setForm((f) => ({ ...f, transitionName: e.target.value }))} helperText="Internal name (used in audit logs)" />
+            <TextField size="small" fullWidth label="Button Label" value={form.buttonLabel} onChange={(e) => setForm((f) => ({ ...f, buttonLabel: e.target.value }))} helperText="Label shown on the action button in the UI (defaults to Transition Name if blank)" />
+            <TextField size="small" fullWidth type="number" label="Display Order" value={form.displayOrder} onChange={(e) => setForm((f) => ({ ...f, displayOrder: e.target.value }))} helperText="Lower numbers appear first in the Change Status dialog" />
             <FormControlLabel control={<Switch checked={form.requiresComment} onChange={(e) => setForm((f) => ({ ...f, requiresComment: e.target.checked }))} />} label="Requires Comment" />
             <FormControlLabel control={<Switch checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} />} label="Active" />
           </Stack>

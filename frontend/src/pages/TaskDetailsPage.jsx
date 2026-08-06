@@ -1279,8 +1279,11 @@ export default function TaskDetailsPage() {
                     ...(selectedTransition?.id === t.id ? { bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } } : {})
                   }}
                 >
-                  <span>{t.transitionName}</span>
-                  <span style={{ fontSize: "0.78rem", opacity: 0.7 }}>→ {t.toStateName}</span>
+                  <span>{t.buttonLabel || t.transitionName}</span>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                    {t.toStateColor && <Box sx={{ width: 8, height: 8, borderRadius: "50%", bgcolor: t.toStateColor, flexShrink: 0 }} />}
+                    <span style={{ fontSize: "0.78rem", opacity: 0.7 }}>→ {t.toStateName}</span>
+                  </Box>
                 </Button>
               ))}
 

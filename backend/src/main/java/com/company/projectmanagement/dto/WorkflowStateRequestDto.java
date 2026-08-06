@@ -26,6 +26,7 @@ public class WorkflowStateRequestDto {
     private String stateName;
 
     private String description;
+    private String color;
     private Integer displayOrder;
     private Boolean initial;
     private Boolean terminal;

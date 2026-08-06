@@ -27,10 +27,13 @@ public class WorkflowTransitionRequestDto {
     @Size(max = 100, message = "Transition key must be at most 100 characters")
     private String transitionKey;
 
-    @NotBlank(message = "Transition name is required")
     @Size(max = 255, message = "Transition name must be at most 255 characters")
     private String transitionName;
 
+    @Size(max = 255, message = "Button label must be at most 255 characters")
+    private String buttonLabel;
+
+    private Integer displayOrder;
     private Boolean requiresComment;
     private Boolean active;
 }

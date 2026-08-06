@@ -48,16 +48,21 @@ public class WorkflowEngineServiceImpl implements WorkflowEngineService {
         return workflowTransitionRepository
                 .findByWorkflowIdAndFromStateIdAndActive(currentState.getWorkflowId(), currentState.getId(), true)
                 .stream()
+                .sorted((a, b) -> {
+                    int da = a.getDisplayOrder() != null ? a.getDisplayOrder() : 0;
+                    int db = b.getDisplayOrder() != null ? b.getDisplayOrder() : 0;
+                    return Integer.compare(da, db);
+                })
                 .map(t -> {
-                    String toStateName = workflowStateRepository.findById(t.getToStateId())
-                            .map(WorkflowState::getStateName)
-                            .orElse(null);
+                    WorkflowState toState = workflowStateRepository.findById(t.getToStateId()).orElse(null);
                     return WorkflowTransitionAvailableDto.builder()
                             .id(t.getId())
                             .transitionKey(t.getTransitionKey())
                             .transitionName(t.getTransitionName())
+                            .buttonLabel(t.getButtonLabel() != null ? t.getButtonLabel() : t.getTransitionName())
                             .toStateId(t.getToStateId())
-                            .toStateName(toStateName)
+                            .toStateName(toState != null ? toState.getStateName() : null)
+                            .toStateColor(toState != null ? toState.getColor() : null)
                             .requiresComment(t.getRequiresComment())
                             .build();
                 })

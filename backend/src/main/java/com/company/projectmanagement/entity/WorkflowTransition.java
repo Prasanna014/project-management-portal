@@ -78,6 +78,13 @@ public class WorkflowTransition {
     @Column(name = "transition_name", nullable = false)
     private String transitionName;
 
+    @Size(max = 255)
+    @Column(name = "button_label")
+    private String buttonLabel;
+
+    @Column(name = "display_order", nullable = false)
+    private Integer displayOrder;
+
     @Column(name = "requires_comment", nullable = false)
     private Boolean requiresComment;
 
@@ -99,6 +106,9 @@ public class WorkflowTransition {
         }
         if (this.requiresComment == null) {
             this.requiresComment = false;
+        }
+        if (this.displayOrder == null) {
+            this.displayOrder = 0;
         }
     }
 

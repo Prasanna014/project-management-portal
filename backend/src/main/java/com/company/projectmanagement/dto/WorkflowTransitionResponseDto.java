@@ -16,9 +16,14 @@ public class WorkflowTransitionResponseDto {
     private Long id;
     private Long workflowId;
     private Long fromStateId;
+    private String fromStateName;
     private Long toStateId;
+    private String toStateName;
+    private String toStateColor;
     private String transitionKey;
     private String transitionName;
+    private String buttonLabel;
+    private Integer displayOrder;
     private Boolean requiresComment;
     private Boolean active;
     private LocalDateTime createdAt;

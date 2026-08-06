@@ -374,6 +374,14 @@ ALTER TABLE tracker.tasks
     ADD COLUMN IF NOT EXISTS category_id BIGINT,
     ADD COLUMN IF NOT EXISTS workflow_state_id BIGINT;
 
+-- Workflow engine enhancement columns
+ALTER TABLE tracker.workflow_states
+    ADD COLUMN IF NOT EXISTS color VARCHAR(20) DEFAULT '#6b7280';
+
+ALTER TABLE tracker.workflow_transitions
+    ADD COLUMN IF NOT EXISTS button_label VARCHAR(255),
+    ADD COLUMN IF NOT EXISTS display_order INT DEFAULT 0;
+
 -- Safe foreign key additions for existing tables
 DO $$
 BEGIN
