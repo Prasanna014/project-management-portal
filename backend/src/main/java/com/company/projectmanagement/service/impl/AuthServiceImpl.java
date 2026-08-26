@@ -11,6 +11,7 @@ import com.company.projectmanagement.entity.User;
 import com.company.projectmanagement.exception.BadRequestException;
 import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.UserRepository;
+import com.company.projectmanagement.service.AuditLogService;
 import com.company.projectmanagement.security.JwtTokenProvider;
 import com.company.projectmanagement.security.SecurityUserPrincipal;
 import com.company.projectmanagement.service.AuthService;
@@ -38,6 +39,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
+    private final AuditLogService auditLogService;
 
     @Override
     public AuthTokenResponseDto login(AuthLoginRequestDto request) {
@@ -99,6 +101,9 @@ public class AuthServiceImpl implements AuthService {
         user.setPasswordChangeRequired(false);
         user.setAccountStatus(UserService.STATUS_ACTIVE);
         userRepository.save(user);
+        auditLogService.record("USER", user.getId(), "USER_PASSWORD_CHANGED", null,
+                "email=" + user.getEmail() + ", accountStatus=" + user.getAccountStatus(),
+                userId, "User changed their password from Settings.");
     }
 
     @Override

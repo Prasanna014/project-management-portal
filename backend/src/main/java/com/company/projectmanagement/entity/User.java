@@ -71,13 +71,24 @@ public class User {
     @Column(name = "last_login_at")
     private LocalDateTime lastLoginAt;
 
-        @Column(name = "department_id")
-        private Long departmentId;
+    @Column(name = "department_id")
+    private Long departmentId;
 
-        @ManyToOne(fetch = FetchType.LAZY)
-        @JoinColumn(name = "department_id", insertable = false, updatable = false,
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "department_id", insertable = false, updatable = false,
             foreignKey = @ForeignKey(name = "users_department_fk"))
-        private Department department;
+    private Department department;
+
+    @Column(name = "designation", length = 255)
+    private String designation;
+
+    @Column(name = "reporting_manager_id")
+    private Long reportingManagerId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reporting_manager_id", insertable = false, updatable = false,
+            foreignKey = @ForeignKey(name = "users_reporting_manager_fk"))
+    private User reportingManager;
 
     @Column(name = "active")
     private Boolean active;

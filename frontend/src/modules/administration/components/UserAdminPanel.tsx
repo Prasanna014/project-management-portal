@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -22,7 +23,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { PageSnackbar } from "@shared/ui/feedback/PageSnackbar";
 import { LoadingState } from "@shared/ui/states/LoadingState";
@@ -31,10 +31,12 @@ import { EmptyState } from "@shared/ui/states/EmptyState";
 import {
   adminResetUserPassword,
   createUser,
+  fetchDepartmentOptions,
   fetchUsers,
   resendUserInvite,
   updateUser,
   updateUserAccountStatus,
+  type DepartmentOption,
   type UserRecord,
 } from "@modules/users/services/usersApi";
 
@@ -46,12 +48,50 @@ type FormState = {
   email: string;
   role: string;
   active: boolean;
+  departmentId: number | null;
+  designation: string;
+  reportingManagerId: number | null;
 };
 
-const emptyForm: FormState = { employeeId: "", fullName: "", email: "", role: "", active: true };
+const emptyForm: FormState = {
+  employeeId: "",
+  fullName: "",
+  email: "",
+  role: "CONTRIBUTOR",
+  active: true,
+  departmentId: null,
+  designation: "",
+  reportingManagerId: null,
+};
+
+const ROLE_OPTIONS = ["ADMIN", "PMO_MANAGER", "PROJECT_MANAGER", "TEAM_LEAD", "CONTRIBUTOR", "VIEWER", "KNOWLEDGE_CURATOR"];
 
 function formatStatus(status?: string | null) {
   return status ? status.replaceAll("_", " ") : "Unknown";
+}
+
+function formatDate(value?: string | null) {
+  if (!value) {
+    return "-";
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
+}
+
+function validateForm(form: FormState) {
+  if (!form.employeeId.trim()) {
+    return "Employee ID is required.";
+  }
+  if (!form.fullName.trim()) {
+    return "Full name is required.";
+  }
+  if (!form.email.trim()) {
+    return "Email is required.";
+  }
+  if (!/\S+@\S+\.\S+/.test(form.email.trim())) {
+    return "Enter a valid email address.";
+  }
+  return null;
 }
 
 export function UserAdminPanel() {
@@ -64,56 +104,111 @@ export function UserAdminPanel() {
   const [formError, setFormError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" as "success" | "error" | "info" });
 
-  const showSnackbar = (message: string, severity: "success" | "error" | "info") =>
+  const showSnackbar = (message: string, severity: "success" | "error" | "info") => {
     setSnackbar({ open: true, message, severity });
+  };
 
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
     queryFn: fetchUsers,
   });
 
-  const filtered = (usersQuery.data ?? []).filter((u) =>
-    !keyword || u.fullName?.toLowerCase().includes(keyword.toLowerCase()) || u.email?.toLowerCase().includes(keyword.toLowerCase())
+  const departmentsQuery = useQuery({
+    queryKey: ["admin-user-departments"],
+    queryFn: fetchDepartmentOptions,
+  });
+
+  const filtered = useMemo(
+    () =>
+      (usersQuery.data ?? []).filter((user) => {
+        if (!keyword.trim()) {
+          return true;
+        }
+        const search = keyword.trim().toLowerCase();
+        return [user.fullName, user.email, user.employeeId, user.role ?? "", user.departmentName ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(search);
+      }),
+    [keyword, usersQuery.data]
   );
 
-  const reload = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+  const managerOptions = useMemo(
+    () => (usersQuery.data ?? []).filter((user) => user.id !== editUser?.id),
+    [editUser?.id, usersQuery.data]
+  );
+
+  const reload = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+  };
 
   const createMutation = useMutation({
     mutationFn: () => createUser(form),
-    onSuccess: (response) => {
-      reload();
+    onSuccess: async (response) => {
+      await reload();
       setDialogMode(null);
       setCreatedUser(response);
+      setForm(emptyForm);
+      setFormError(null);
       showSnackbar("User created.", "success");
     },
-    onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Unable to create user.";
+      setFormError(message);
+      showSnackbar(message, "error");
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: () => updateUser(editUser!.id, form),
-    onSuccess: () => { reload(); setDialogMode(null); showSnackbar("User updated.", "success"); },
-    onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
+    onSuccess: async () => {
+      await reload();
+      setDialogMode(null);
+      setEditUser(null);
+      setForm(emptyForm);
+      setFormError(null);
+      showSnackbar("User updated.", "success");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Unable to update user.";
+      setFormError(message);
+      showSnackbar(message, "error");
+    },
   });
 
   const resendInviteMutation = useMutation({
     mutationFn: (userId: number) => resendUserInvite(userId),
-    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Invite regenerated.", "success"); },
-    onError: (e) => showSnackbar((e as Error).message, "error"),
+    onSuccess: async (user) => {
+      await reload();
+      setCreatedUser(user);
+      showSnackbar("Invite regenerated.", "success");
+    },
+    onError: (error) => showSnackbar(error instanceof Error ? error.message : "Unable to resend invite.", "error"),
   });
 
   const adminResetMutation = useMutation({
     mutationFn: (userId: number) => adminResetUserPassword(userId),
-    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Reset link generated.", "success"); },
-    onError: (e) => showSnackbar((e as Error).message, "error"),
+    onSuccess: async (user) => {
+      await reload();
+      setCreatedUser(user);
+      showSnackbar("Reset link generated.", "success");
+    },
+    onError: (error) => showSnackbar(error instanceof Error ? error.message : "Unable to generate reset link.", "error"),
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ userId, accountStatus }: { userId: number; accountStatus: string }) => updateUserAccountStatus(userId, accountStatus),
-    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Status updated.", "success"); },
-    onError: (e) => showSnackbar((e as Error).message, "error"),
+    mutationFn: ({ userId, accountStatus }: { userId: number; accountStatus: string }) =>
+      updateUserAccountStatus(userId, accountStatus),
+    onSuccess: async (user) => {
+      await reload();
+      setCreatedUser(user);
+      showSnackbar("Status updated.", "success");
+    },
+    onError: (error) => showSnackbar(error instanceof Error ? error.message : "Unable to update status.", "error"),
   });
 
   const handleOpenCreate = () => {
+    setEditUser(null);
     setForm(emptyForm);
     setFormError(null);
     setDialogMode("create");
@@ -121,9 +216,33 @@ export function UserAdminPanel() {
 
   const handleOpenEdit = (user: UserDto) => {
     setEditUser(user);
-    setForm({ employeeId: user.employeeId, fullName: user.fullName, email: user.email, role: user.role ?? "", active: user.active ?? true });
+    setForm({
+      employeeId: user.employeeId,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role ?? "CONTRIBUTOR",
+      active: user.active ?? true,
+      departmentId: user.departmentId ?? null,
+      designation: user.designation ?? "",
+      reportingManagerId: user.reportingManagerId ?? null,
+    });
     setFormError(null);
     setDialogMode("edit");
+  };
+
+  const handleSubmit = () => {
+    const validationError = validateForm(form);
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+    if (dialogMode === "create") {
+      createMutation.mutate();
+      return;
+    }
+    if (dialogMode === "edit") {
+      updateMutation.mutate();
+    }
   };
 
   return (
@@ -132,11 +251,17 @@ export function UserAdminPanel() {
         <Stack direction="row" justifyContent="space-between" alignItems="center">
           <Box>
             <Typography variant="h5">Users</Typography>
-            <Typography variant="body2" color="text.secondary">Manage system user accounts.</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Manage enterprise onboarding, reporting lines, and user account lifecycle.
+            </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" size="small" onClick={reload}>Refresh</Button>
-            <Button variant="contained" size="small" onClick={handleOpenCreate}>+ Create User</Button>
+            <Button variant="outlined" size="small" onClick={() => void reload()}>
+              Refresh
+            </Button>
+            <Button variant="contained" size="small" onClick={handleOpenCreate}>
+              + Create User
+            </Button>
           </Stack>
         </Stack>
       </Paper>
@@ -145,16 +270,16 @@ export function UserAdminPanel() {
         <TextField
           fullWidth
           size="small"
-          label="Search by name or email"
+          label="Search by name, email, employee ID, role, or department"
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          onChange={(event) => setKeyword(event.target.value)}
           sx={{ mb: 2 }}
         />
 
         {usersQuery.isLoading ? (
           <LoadingState variant="table" rows={7} />
         ) : usersQuery.isError ? (
-          <ErrorState message={(usersQuery.error as Error).message} onRetry={reload} />
+          <ErrorState message={(usersQuery.error as Error).message} onRetry={() => void reload()} />
         ) : filtered.length === 0 ? (
           <EmptyState title="No users found" description="Create a user to get started." />
         ) : (
@@ -166,8 +291,12 @@ export function UserAdminPanel() {
                   <TableCell>Employee ID</TableCell>
                   <TableCell>Full Name</TableCell>
                   <TableCell>Email</TableCell>
+                  <TableCell>Department</TableCell>
+                  <TableCell>Designation</TableCell>
+                  <TableCell>Reporting Manager</TableCell>
                   <TableCell>Role</TableCell>
                   <TableCell>Status</TableCell>
+                  <TableCell>Last Login</TableCell>
                   <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
@@ -178,6 +307,9 @@ export function UserAdminPanel() {
                     <TableCell>{user.employeeId}</TableCell>
                     <TableCell>{user.fullName}</TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>{user.departmentName ?? "-"}</TableCell>
+                    <TableCell>{user.designation ?? "-"}</TableCell>
+                    <TableCell>{user.reportingManagerName ?? "-"}</TableCell>
                     <TableCell>{user.role ?? "-"}</TableCell>
                     <TableCell>
                       <Stack direction="row" spacing={0.8} useFlexGap flexWrap="wrap">
@@ -186,16 +318,35 @@ export function UserAdminPanel() {
                         {user.passwordChangeRequired ? <Chip size="small" label="Password setup required" color="warning" /> : null}
                       </Stack>
                     </TableCell>
+                    <TableCell>{formatDate(user.lastLoginAt)}</TableCell>
                     <TableCell align="right">
                       <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
-                        <Button size="small" onClick={() => handleOpenEdit(user)}>Edit</Button>
-                        <Button size="small" onClick={() => resendInviteMutation.mutate(user.id)} disabled={resendInviteMutation.isPending}>Resend invite</Button>
-                        <Button size="small" onClick={() => adminResetMutation.mutate(user.id)} disabled={adminResetMutation.isPending}>Reset password</Button>
+                        <Button size="small" onClick={() => handleOpenEdit(user)}>
+                          Edit
+                        </Button>
+                        <Button size="small" onClick={() => resendInviteMutation.mutate(user.id)} disabled={resendInviteMutation.isPending}>
+                          Resend invite
+                        </Button>
+                        <Button size="small" onClick={() => adminResetMutation.mutate(user.id)} disabled={adminResetMutation.isPending}>
+                          Reset password
+                        </Button>
                         {user.accountStatus === "SUSPENDED" ? (
-                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "ACTIVE" })} disabled={statusMutation.isPending}>Reactivate</Button>
+                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "ACTIVE" })} disabled={statusMutation.isPending}>
+                            Reactivate
+                          </Button>
                         ) : (
-                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "SUSPENDED" })} disabled={statusMutation.isPending}>Suspend</Button>
+                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "SUSPENDED" })} disabled={statusMutation.isPending}>
+                            Suspend
+                          </Button>
                         )}
+                        <Button
+                          size="small"
+                          color="warning"
+                          onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "DEACTIVATED" })}
+                          disabled={statusMutation.isPending || user.accountStatus === "DEACTIVATED"}
+                        >
+                          Deactivate
+                        </Button>
                       </Stack>
                     </TableCell>
                   </TableRow>
@@ -211,25 +362,60 @@ export function UserAdminPanel() {
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 0.5 }}>
             {formError ? <Alert severity="error">{formError}</Alert> : null}
-            <TextField size="small" fullWidth required label="Employee ID" value={form.employeeId} onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))} />
-            <TextField size="small" fullWidth required label="Full Name" value={form.fullName} onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))} />
-            <TextField size="small" fullWidth required label="Email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
-            <TextField select size="small" fullWidth label="Role" value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-              <MenuItem value="">-- None --</MenuItem>
-              <MenuItem value="ADMIN">Admin</MenuItem>
-              <MenuItem value="MANAGER">Manager</MenuItem>
-              <MenuItem value="USER">User</MenuItem>
-              <MenuItem value="VIEWER">Viewer</MenuItem>
+            <TextField size="small" fullWidth required label="Employee ID" value={form.employeeId} onChange={(event) => setForm((current) => ({ ...current, employeeId: event.target.value }))} />
+            <TextField size="small" fullWidth required label="Full Name" value={form.fullName} onChange={(event) => setForm((current) => ({ ...current, fullName: event.target.value }))} />
+            <TextField size="small" fullWidth required label="Email" type="email" value={form.email} onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))} />
+            <TextField select size="small" fullWidth label="Role" value={form.role} onChange={(event) => setForm((current) => ({ ...current, role: event.target.value }))}>
+              {ROLE_OPTIONS.map((role) => (
+                <MenuItem key={role} value={role}>
+                  {role}
+                </MenuItem>
+              ))}
             </TextField>
-            <FormControlLabel
-              control={<Switch checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} />}
-              label="Active"
-            />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              label="Department"
+              value={form.departmentId ? String(form.departmentId) : ""}
+              onChange={(event) => setForm((current) => ({ ...current, departmentId: event.target.value ? Number(event.target.value) : null }))}
+            >
+              <MenuItem value="">No department</MenuItem>
+              {(departmentsQuery.data ?? []).map((department: DepartmentOption) => (
+                <MenuItem key={department.id} value={department.id}>
+                  {department.departmentName} ({department.departmentCode})
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField size="small" fullWidth label="Designation" value={form.designation} onChange={(event) => setForm((current) => ({ ...current, designation: event.target.value }))} />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              label="Reporting Manager"
+              value={form.reportingManagerId ? String(form.reportingManagerId) : ""}
+              onChange={(event) => setForm((current) => ({ ...current, reportingManagerId: event.target.value ? Number(event.target.value) : null }))}
+            >
+              <MenuItem value="">No reporting manager</MenuItem>
+              {managerOptions.map((manager) => (
+                <MenuItem key={manager.id} value={manager.id}>
+                  {manager.fullName} ({manager.employeeId})
+                </MenuItem>
+              ))}
+            </TextField>
+            {dialogMode === "edit" ? (
+              <FormControlLabel
+                control={<Switch checked={form.active} onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))} />}
+                label="Active"
+              />
+            ) : (
+              <Alert severity="info">New users start in invited state and become active after setting their own password from the activation link.</Alert>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDialogMode(null)}>Cancel</Button>
-          <Button variant="contained" onClick={() => dialogMode === "create" ? createMutation.mutate() : updateMutation.mutate()} disabled={createMutation.isPending || updateMutation.isPending}>
+          <Button variant="contained" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
             {dialogMode === "create" ? "Create" : "Update"}
           </Button>
         </DialogActions>
@@ -243,7 +429,11 @@ export function UserAdminPanel() {
               Admin now provisions accounts using invite and reset links instead of sharing passwords directly.
             </Alert>
             <TextField size="small" fullWidth label="Login email" value={createdUser?.email ?? ""} InputProps={{ readOnly: true }} />
+            <TextField size="small" fullWidth label="Department" value={createdUser?.departmentName ?? "-"} InputProps={{ readOnly: true }} />
+            <TextField size="small" fullWidth label="Designation" value={createdUser?.designation ?? "-"} InputProps={{ readOnly: true }} />
+            <TextField size="small" fullWidth label="Reporting manager" value={createdUser?.reportingManagerName ?? "-"} InputProps={{ readOnly: true }} />
             <TextField size="small" fullWidth label="Account status" value={formatStatus(createdUser?.accountStatus)} InputProps={{ readOnly: true }} />
+            {createdUser?.emailDeliveryStatus ? <Alert severity="info">{createdUser.emailDeliveryStatus}</Alert> : null}
             {createdUser?.onboardingAccessLink ? (
               <Alert severity="info">
                 Invite link:{" "}
@@ -267,7 +457,7 @@ export function UserAdminPanel() {
         </DialogActions>
       </Dialog>
 
-      <PageSnackbar open={snackbar.open} message={snackbar.message} severity={snackbar.severity} onClose={() => setSnackbar((s) => ({ ...s, open: false }))} />
+      <PageSnackbar open={snackbar.open} message={snackbar.message} severity={snackbar.severity} onClose={() => setSnackbar((current) => ({ ...current, open: false }))} />
     </Stack>
   );
 }

@@ -8,11 +8,13 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [resetLink, setResetLink] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
   const mutation = useMutation({
     mutationFn: () => requestForgotPassword(email.trim()),
     onSuccess: (result) => {
       setFormError(null);
+      setStatusMessage(result.emailDeliveryStatus ?? "If the account exists, a reset link has been prepared.");
       setResetLink(result.passwordResetLink ?? null);
     },
     onError: (error) => {
@@ -42,6 +44,7 @@ export function ForgotPasswordPage() {
             <Stack spacing={1.5}>
               <TextField label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} />
               {formError ? <Alert severity="error">{formError}</Alert> : null}
+              {statusMessage ? <Alert severity="info">{statusMessage}</Alert> : null}
               {resetLink ? (
                 <Alert severity="success">
                   Reset link ready:{" "}

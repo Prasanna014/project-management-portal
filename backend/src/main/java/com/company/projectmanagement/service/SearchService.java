@@ -3,11 +3,16 @@
 package com.company.projectmanagement.service;
 
 import com.company.projectmanagement.dto.ProjectDto;
+import com.company.projectmanagement.dto.SearchCommentResultDto;
 import com.company.projectmanagement.dto.TaskDto;
 import com.company.projectmanagement.entity.Project;
 import com.company.projectmanagement.entity.Task;
+import com.company.projectmanagement.entity.TaskComment;
+import com.company.projectmanagement.entity.User;
 import com.company.projectmanagement.repository.ProjectRepository;
+import com.company.projectmanagement.repository.TaskCommentRepository;
 import com.company.projectmanagement.repository.TaskRepository;
+import com.company.projectmanagement.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,6 +25,8 @@ public class SearchService {
 
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
+    private final TaskCommentRepository taskCommentRepository;
+    private final UserRepository userRepository;
 
     /* ================= TASK SEARCH ================= */
     public List<TaskDto> searchTasks(String keyword) {
@@ -49,6 +56,24 @@ public class SearchService {
                 .collect(Collectors.toList());
     }
 
+    public List<SearchCommentResultDto> searchComments(String keyword) {
+        String lower = keyword.toLowerCase(Locale.ROOT);
+
+        Map<Long, Task> tasksById = taskRepository.findAll().stream()
+                .collect(Collectors.toMap(Task::getId, task -> task));
+        Map<Long, String> userNames = userRepository.findAll().stream()
+                .collect(Collectors.toMap(User::getId, User::getFullName, (left, right) -> left));
+
+        return taskCommentRepository.findAll().stream()
+                .filter(comment ->
+                        comment.getCommentText() != null && comment.getCommentText().toLowerCase(Locale.ROOT).contains(lower)
+                                || matchesTaskMetadata(tasksById.get(comment.getTaskId()), lower)
+                )
+                .sorted(Comparator.comparing(TaskComment::getCommentedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(comment -> mapCommentToDto(comment, tasksById.get(comment.getTaskId()), userNames))
+                .collect(Collectors.toList());
+    }
+
     /* ================= GLOBAL SEARCH ================= */
     public Map<String, Object> globalSearch(String keyword) {
 
@@ -56,6 +81,7 @@ public class SearchService {
 
         result.put("tasks", searchTasks(keyword));
         result.put("projects", searchProjects(keyword));
+        result.put("comments", searchComments(keyword));
 
         return result;
     }
@@ -101,5 +127,27 @@ public class SearchService {
                 .active(p.getActive())
                 .createdAt(p.getCreatedAt())
                 .build();
+    }
+
+    private SearchCommentResultDto mapCommentToDto(TaskComment comment, Task task, Map<Long, String> userNames) {
+        return SearchCommentResultDto.builder()
+                .id(comment.getId())
+                .taskId(comment.getTaskId())
+                .taskNo(task != null ? task.getTaskNo() : null)
+                .taskTitle(task != null ? task.getIssueActionItem() : null)
+                .commentText(comment.getCommentText())
+                .commentedBy(comment.getCommentedBy())
+                .commentedByName(userNames.get(comment.getCommentedBy()))
+                .commentedAt(comment.getCommentedAt())
+                .build();
+    }
+
+    private boolean matchesTaskMetadata(Task task, String keyword) {
+        if (task == null) {
+            return false;
+        }
+
+        return (task.getTaskNo() != null && task.getTaskNo().toLowerCase(Locale.ROOT).contains(keyword))
+                || (task.getIssueActionItem() != null && task.getIssueActionItem().toLowerCase(Locale.ROOT).contains(keyword));
     }
 }

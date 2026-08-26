@@ -138,6 +138,7 @@
 - [ ] Burndown chart (tasks closed per day vs remaining)
 - [ ] Workload report (tasks per user)
 
+below is completed till --3.10 point 
 ### 3.7 Search Module (missing entirely)
 - [ ] Create `src/modules/search/pages/SearchPage.tsx`
 - [ ] Global search bar in AppShell header (already has icon)
@@ -156,12 +157,25 @@
 - [ ] Real-time badge update (polling or WebSocket)
 
 ### 3.9 Calendar Module (missing entirely)
+
 - [ ] Create `src/modules/calendar/pages/CalendarPage.tsx`
 - [ ] Month / week / day view toggle
 - [ ] Tasks plotted by `targetDate`
 - [ ] Holidays from DB overlaid on calendar
 - [ ] Click day → quick-create task with that date pre-filled
 - [ ] Color-code by priority or status
+- [ ] Display tickets/tasks in calendar blocks similar to Microsoft Teams/Outlook calendar events
+- [ ] Show ticket duration based on configured start and end time slots
+- [ ] Preserve the same priority/status color mapping already implemented in the Ticketing module
+- [ ] Calendar event colors must automatically reflect ticket priority and status:
+  - Green → Low Priority
+  - Yellow/Amber → Medium Priority
+  - Red → High/Critical Priority
+  - Other status colors should match the existing Ticketing page implementation
+- [ ] Expired or overdue tickets should be visually highlighted using the existing overdue color scheme
+- [ ] Hovering over a calendar item should display ticket details (Title, Priority, Status, Assignee, Due Date)
+- [ ] Clicking a calendar item should open the ticket details/edit page
+- [ ] Support overlapping tickets/events with clear visual separation similar to Microsoft Teams calendar view
 
 ### 3.10 Settings Module (placeholder)
 - [ ] User profile (name, email, avatar, password change)

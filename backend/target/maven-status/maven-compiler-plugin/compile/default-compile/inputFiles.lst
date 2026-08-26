@@ -9,6 +9,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\AuthController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\DashboardController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\DepartmentAdminController.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\KnowledgeBaseController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\NotificationController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\OrganizationAdminController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\PermissionAdminController.java
@@ -38,6 +39,8 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\DepartmentValidationDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ForgotPasswordRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\HolidayDto.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\KnowledgeDocumentDto.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\KnowledgeDocumentUpdateRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\NotificationDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\OrgLocationDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\PermissionRequestDto.java
@@ -102,6 +105,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\id\RolePermissionId.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\id\UserRoleId.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\id\WorkflowTransitionRoleId.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\KnowledgeDocument.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\Notification.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\OrgLocation.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\entity\Permission.java
@@ -136,6 +140,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\CompanyProfileRepository.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\DepartmentRepository.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\HolidayRepository.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\KnowledgeDocumentRepository.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\NotificationRepository.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\OrgLocationRepository.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\repository\PermissionRepository.java
@@ -180,6 +185,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\impl\WorkflowAdminServiceImpl.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\impl\WorkflowEngineServiceImpl.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\impl\WorkLogServiceImpl.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\KnowledgeBaseService.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\NotificationService.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\OrganizationAdminService.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\service\PermissionAdminService.java

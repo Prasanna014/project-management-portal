@@ -17,9 +17,13 @@ export const mainNavigation: MainNavItem[] = [
   { label: "Workspace", to: "/workspace" },
   { label: "Projects", to: "/projects" },
   { label: "Tasks", to: "/tasks" },
+  { label: "Search", to: "/search" },
+  { label: "Notifications", to: "/notifications" },
+  { label: "Calendar", to: "/calendar" },
   { label: "Reports", to: "/reports" },
   { label: "Users", to: "/users" },
   { label: "Knowledge Base", to: "/knowledge-base" },
+  { label: "Profile", to: "/profile" },
   { label: "Administration", to: "/administration" },
   { label: "Settings", to: "/settings" },
 ];

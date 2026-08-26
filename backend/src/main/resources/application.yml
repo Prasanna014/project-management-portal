@@ -53,3 +53,7 @@ jwt:
 
 app:
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+  mail-from: ${APP_MAIL_FROM:noreply@supportflow.local}
+  knowledge-base:
+    storage-dir: ${KNOWLEDGE_BASE_STORAGE_DIR:uploads/knowledge-base}
+    purge-cron: ${KNOWLEDGE_BASE_PURGE_CRON:0 0 2 * * *}

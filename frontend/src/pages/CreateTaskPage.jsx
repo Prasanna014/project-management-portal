@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Stack,
   Box,
@@ -31,9 +31,12 @@ import { getAllTasks, createTask } from "../services/taskService";
 
 export default function CreateTaskPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, hasAnyPermission } = useAuth();
   const currentUserId = user?.userId ?? null;
   const canCreateTask = hasAnyPermission(buildActionPermissionCandidates("tasks", "create"));
+  const defaultTargetDate = searchParams.get("targetDate") || "";
+  const defaultProjectId = searchParams.get("projectId") || "";
 
   // State
   const [projects, setProjects] = useState([]);
@@ -46,9 +49,9 @@ export default function CreateTaskPage() {
     issueActionItem: "",
     description: "",
     priority: "Medium",
-    projectId: "",
+    projectId: defaultProjectId,
     ownerId: "",
-    targetDate: "",
+    targetDate: defaultTargetDate,
     status: "Open"
   });
 

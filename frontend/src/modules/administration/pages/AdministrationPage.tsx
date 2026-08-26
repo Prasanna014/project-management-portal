@@ -5,6 +5,7 @@ import { AdminModuleWorkspace } from "@modules/administration/components/AdminMo
 import { CompanyProfilePanel } from "@modules/administration/components/CompanyProfilePanel";
 import { DepartmentAdminPanel } from "@modules/administration/components/DepartmentAdminPanel";
 import { UserAdminPanel } from "@modules/administration/components/UserAdminPanel";
+import { AuditLogsPanel } from "@modules/administration/components/AuditLogsPanel";
 import { WorkflowStatesPanel } from "@modules/administration/components/WorkflowStatesPanel";
 import { WorkflowTransitionsPanel } from "@modules/administration/components/WorkflowTransitionsPanel";
 import { UserRolePanel } from "@modules/administration/components/UserRolePanel";
@@ -49,6 +50,7 @@ export function AdministrationPage() {
   if (selected.key === "company-profile") return <CompanyProfilePanel />;
   if (selected.key === "departments") return <DepartmentAdminPanel />;
   if (selected.key === "users") return <UserAdminPanel />;
+  if (selected.key === "audit-logs") return <AuditLogsPanel />;
   if (selected.key === "workflow-states") return <WorkflowStatesPanel />;
   if (selected.key === "workflow-transitions") return <WorkflowTransitionsPanel />;
   if (selected.key === "user-roles") return <UserRolePanel />;

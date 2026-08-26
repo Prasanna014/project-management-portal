@@ -24,6 +24,11 @@ public class UserController {
         return ResponseEntity.ok(service.getAllUsers());
     }
 
+    @GetMapping("/me")
+    public ResponseEntity<UserDto> getCurrentUserProfile() {
+        return ResponseEntity.ok(service.getCurrentUserProfile());
+    }
+
     /* ================= GET BY ID ================= */
     @GetMapping("/{id}")
     public ResponseEntity<UserDto> getUserById(@PathVariable Long id) {

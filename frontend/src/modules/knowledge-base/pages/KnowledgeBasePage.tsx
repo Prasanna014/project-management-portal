@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Alert,
   Box,
@@ -6,6 +7,10 @@ import {
   Card,
   CardContent,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   MenuItem,
   Paper,
   Stack,
@@ -18,217 +23,268 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import AutoDeleteRoundedIcon from "@mui/icons-material/AutoDeleteRounded";
 import DescriptionRoundedIcon from "@mui/icons-material/DescriptionRounded";
 import LibraryBooksRoundedIcon from "@mui/icons-material/LibraryBooksRounded";
 import RestoreFromTrashRoundedIcon from "@mui/icons-material/RestoreFromTrashRounded";
 import ShieldRoundedIcon from "@mui/icons-material/ShieldRounded";
+import UploadFileRoundedIcon from "@mui/icons-material/UploadFileRounded";
+import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
+import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
+import { Link as RouterLink } from "react-router-dom";
 import { useAuth } from "@features/auth/context/AuthContext";
-import { buildReadPermissionCandidates } from "@shared/auth/permissions";
+import { buildActionPermissionCandidates, buildReadPermissionCandidates } from "@shared/auth/permissions";
+import { EmptyState } from "@shared/ui/states/EmptyState";
+import { ErrorState } from "@shared/ui/states/ErrorState";
+import { LoadingState } from "@shared/ui/states/LoadingState";
 import { PageSnackbar, type SnackbarSeverity } from "@shared/ui/feedback/PageSnackbar";
+import {
+  ADMIN_RESTORE_WINDOW_DAYS,
+  EXTENSION_POLICIES,
+  getDaysSince,
+  IMPLEMENTATION_BACKLOG,
+  USER_RESTORE_WINDOW_DAYS,
+} from "@modules/knowledge-base/data/knowledgeBaseData";
+import {
+  downloadKnowledgeDocument,
+  listKnowledgeDocuments,
+  restoreKnowledgeDocument,
+  softDeleteKnowledgeDocument,
+  updateKnowledgeDocument,
+  uploadKnowledgeDocument,
+  type KnowledgeDocumentRecord,
+  type KnowledgeDocumentUpsertPayload,
+} from "@modules/knowledge-base/services/knowledgeBaseApi";
 
-type ActorRole = "user" | "admin";
+type DialogMode = "create" | "edit" | null;
 
-type KnowledgeDocument = {
-  id: number;
-  title: string;
-  category: string;
-  extension: string;
-  audience: string;
-  owner: string;
-  deletedAt?: string;
-  deletedBy?: ActorRole;
+type FormState = KnowledgeDocumentUpsertPayload & {
+  file: File | null;
 };
 
-type ExtensionPolicy = {
-  category: string;
-  extensions: string[];
-  useCase: string;
-  notes: string;
+const INITIAL_FORM: FormState = {
+  title: "",
+  category: "SOP",
+  audience: "",
+  description: "",
+  file: null,
 };
 
-const RETENTION_WINDOWS: Record<ActorRole, number> = {
-  user: 30,
-  admin: 60,
-};
-
-const EXTENSION_POLICIES: ExtensionPolicy[] = [
-  {
-    category: "Office documents",
-    extensions: [".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx", ".csv"],
-    useCase: "SOPs, policies, templates, release decks, and structured reporting.",
-    notes: "Require metadata tags for owner, department, review date, and confidentiality.",
-  },
-  {
-    category: "Knowledge-first text",
-    extensions: [".md", ".txt", ".rtf", ".pdf"],
-    useCase: "Runbooks, ADRs, manuals, meeting notes, published SOP packs.",
-    notes: "Prefer Markdown for editable internal content and PDF for approved snapshots.",
-  },
-  {
-    category: "Visual artifacts",
-    extensions: [".png", ".jpg", ".jpeg", ".svg", ".webp", ".vsdx"],
-    useCase: "Process maps, architecture diagrams, screenshots, training visuals.",
-    notes: "Store alt text, source system, and linked process ID where applicable.",
-  },
-  {
-    category: "Media and training",
-    extensions: [".mp4", ".mov", ".wav"],
-    useCase: "Recorded walkthroughs, training material, operational recordings.",
-    notes: "Large files should move to object storage with streamed preview support.",
-  },
-  {
-    category: "Controlled packages",
-    extensions: [".zip", ".7z", ".json", ".xml"],
-    useCase: "Policy bundles, import/export packages, structured reference payloads.",
-    notes: "Always scan for malware and restrict public sharing or inline execution.",
-  },
-];
-
-const INITIAL_DOCUMENTS: KnowledgeDocument[] = [
-  { id: 1, title: "Project Intake SOP", category: "SOP", extension: ".docx", audience: "Operations", owner: "PMO Office" },
-  { id: 2, title: "Incident Escalation Runbook", category: "Runbook", extension: ".md", audience: "Engineering", owner: "Platform Team" },
-  { id: 3, title: "Executive Steering Template", category: "Template", extension: ".pptx", audience: "Leadership", owner: "Delivery Office" },
-  { id: 4, title: "Risk Review Checklist", category: "Checklist", extension: ".pdf", audience: "Project Managers", owner: "Governance Team" },
-  {
-    id: 5,
-    title: "Legacy Vendor SOP Archive",
-    category: "Archive",
-    extension: ".zip",
-    audience: "Admins",
-    owner: "Procurement",
-    deletedAt: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString(),
-    deletedBy: "user",
-  },
-  {
-    id: 6,
-    title: "Quarterly PMO Review Pack",
-    category: "Reporting",
-    extension: ".xlsx",
-    audience: "PMO",
-    owner: "PMO Office",
-    deletedAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    deletedBy: "admin",
-  },
-  {
-    id: 7,
-    title: "Retired Process Draft",
-    category: "Archive",
-    extension: ".txt",
-    audience: "Governance",
-    owner: "Quality Team",
-    deletedAt: new Date(Date.now() - 65 * 24 * 60 * 60 * 1000).toISOString(),
-    deletedBy: "admin",
-  },
-];
-
-const IMPLEMENTATION_BACKLOG = [
-  "Persist documents in object storage and store metadata, version history, and retention state in the database.",
-  "Add antivirus scanning, MIME validation, signed download URLs, and preview generation for enterprise-safe handling.",
-  "Support document approval workflows, review reminders, expirations, and mandatory reader acknowledgements for SOPs.",
-  "Capture every upload, delete, restore, publish, and permission change in audit history.",
-  "Add full-text search, tags, folder hierarchy, and department-based access scopes before business rollout.",
-];
-
-function getDaysSince(value?: string) {
+function formatDate(value?: string | null) {
   if (!value) {
-    return 0;
+    return "-";
   }
-
-  const ms = Date.now() - new Date(value).getTime();
-  return Math.max(0, Math.floor(ms / (24 * 60 * 60 * 1000)));
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
 }
 
-function canRestore(actorRole: ActorRole, deletedAt?: string) {
-  if (!deletedAt) {
-    return false;
-  }
-
-  return getDaysSince(deletedAt) <= RETENTION_WINDOWS[actorRole];
-}
-
-function formatDeletedStatus(document: KnowledgeDocument) {
+function formatStatus(document: KnowledgeDocumentRecord) {
   if (!document.deletedAt) {
     return "Active";
   }
+  return `Deleted ${getDaysSince(document.deletedAt)}d ago`;
+}
 
-  const days = getDaysSince(document.deletedAt);
-  return `Deleted ${days}d ago`;
+function validateForm(form: FormState, dialogMode: DialogMode) {
+  if (!form.title.trim()) {
+    return "Title is required.";
+  }
+  if (!form.category.trim()) {
+    return "Category is required.";
+  }
+  if (dialogMode === "create" && !form.file) {
+    return "Choose a document file to upload.";
+  }
+  return null;
 }
 
 export function KnowledgeBasePage() {
-  const { hasAnyPermission } = useAuth();
+  const queryClient = useQueryClient();
+  const { user, hasAnyPermission } = useAuth();
   const canRead = hasAnyPermission([
     ...buildReadPermissionCandidates("knowledge-base"),
     ...buildReadPermissionCandidates("documents"),
     ...buildReadPermissionCandidates("attachments"),
   ]);
+  const canCreate = hasAnyPermission(buildActionPermissionCandidates("knowledge-base", "create"));
+  const canUpdate = hasAnyPermission(buildActionPermissionCandidates("knowledge-base", "update"));
+  const canAccessRestoreBin = hasAnyPermission(buildReadPermissionCandidates("audit-logs"));
+  const isAdmin = canAccessRestoreBin;
 
-  const [actorRole, setActorRole] = useState<ActorRole>("admin");
-  const [documents, setDocuments] = useState<KnowledgeDocument[]>(INITIAL_DOCUMENTS);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "deleted" | "my-deleted">("all");
+  const [dialogMode, setDialogMode] = useState<DialogMode>(null);
+  const [selectedDocument, setSelectedDocument] = useState<KnowledgeDocumentRecord | null>(null);
+  const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  const [formError, setFormError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: SnackbarSeverity }>({
     open: false,
     message: "",
     severity: "info",
   });
 
-  const filteredDocuments = useMemo(() => {
-    const keyword = search.trim().toLowerCase();
-    return documents.filter((document) => {
-      const haystack = `${document.title} ${document.category} ${document.extension} ${document.owner} ${document.audience}`.toLowerCase();
-      return keyword ? haystack.includes(keyword) : true;
-    });
-  }, [documents, search]);
+  const documentsQuery = useQuery({
+    queryKey: ["knowledge-documents", statusFilter],
+    queryFn: () =>
+      listKnowledgeDocuments({
+        page: 0,
+        size: 200,
+        sortBy: "createdAt",
+        sortDir: "desc",
+        includeDeleted: true,
+      }),
+    enabled: canRead,
+  });
 
-  const stats = useMemo(() => {
-    const activeCount = documents.filter((document) => !document.deletedAt).length;
-    const recoverableCount = documents.filter((document) => canRestore(actorRole, document.deletedAt)).length;
-    const expiredCount = documents.filter((document) => document.deletedAt && !canRestore(actorRole, document.deletedAt)).length;
-
-    return {
-      total: documents.length,
-      active: activeCount,
-      recoverable: recoverableCount,
-      expired: expiredCount,
-    };
-  }, [actorRole, documents]);
-
-  if (!canRead) {
-    return <Alert severity="warning">You do not have read permission for the knowledge base.</Alert>;
-  }
+  const reloadDocuments = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["knowledge-documents"] });
+  };
 
   const showSnackbar = (message: string, severity: SnackbarSeverity) => {
     setSnackbar({ open: true, message, severity });
   };
 
-  const handleSoftDelete = (documentId: number) => {
-    setDocuments((current) =>
-      current.map((document) =>
-        document.id === documentId
-          ? { ...document, deletedAt: new Date().toISOString(), deletedBy: actorRole }
-          : document
-      )
-    );
-    showSnackbar(`Document soft deleted. ${actorRole === "admin" ? "Admins" : "Users"} can restore within ${RETENTION_WINDOWS[actorRole]} days.`, "success");
+  const createMutation = useMutation({
+    mutationFn: () => uploadKnowledgeDocument(form.file!, form),
+    onSuccess: async () => {
+      await reloadDocuments();
+      setDialogMode(null);
+      setSelectedDocument(null);
+      setForm(INITIAL_FORM);
+      setFormError(null);
+      showSnackbar("Knowledge document uploaded successfully.", "success");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Unable to upload document.";
+      setFormError(message);
+      showSnackbar(message, "error");
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: () =>
+      updateKnowledgeDocument(selectedDocument!.id, {
+        title: form.title,
+        category: form.category,
+        audience: form.audience,
+        description: form.description,
+      }),
+    onSuccess: async () => {
+      await reloadDocuments();
+      setDialogMode(null);
+      setSelectedDocument(null);
+      setForm(INITIAL_FORM);
+      setFormError(null);
+      showSnackbar("Knowledge document metadata updated.", "success");
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Unable to update document.";
+      setFormError(message);
+      showSnackbar(message, "error");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (documentId: number) => softDeleteKnowledgeDocument(documentId),
+    onSuccess: async () => {
+      await reloadDocuments();
+      showSnackbar("Document moved to soft-delete state.", "success");
+    },
+    onError: (error) => showSnackbar(error instanceof Error ? error.message : "Unable to delete document.", "error"),
+  });
+
+  const restoreMutation = useMutation({
+    mutationFn: (documentId: number) => restoreKnowledgeDocument(documentId),
+    onSuccess: async () => {
+      await reloadDocuments();
+      showSnackbar("Document restored successfully.", "success");
+    },
+    onError: (error) => showSnackbar(error instanceof Error ? error.message : "Unable to restore document.", "error"),
+  });
+
+  const filteredDocuments = useMemo(() => {
+    const keyword = search.trim().toLowerCase();
+    return (documentsQuery.data?.content ?? []).filter((document) => {
+      const matchesSearch = keyword
+        ? [document.title, document.category, document.audience ?? "", document.fileName, document.uploadedByName ?? ""]
+            .join(" ")
+            .toLowerCase()
+            .includes(keyword)
+        : true;
+      const matchesStatus =
+        statusFilter === "all"
+          ? true
+          : statusFilter === "active"
+            ? !document.deletedAt
+            : statusFilter === "deleted"
+              ? Boolean(document.deletedAt)
+              : Boolean(document.deletedAt) && Number(document.deletedBy) === Number(user?.userId);
+      return matchesSearch && matchesStatus;
+    });
+  }, [documentsQuery.data?.content, search, statusFilter, user?.userId]);
+
+  const stats = useMemo(() => {
+    const rows = documentsQuery.data?.content ?? [];
+    return {
+      total: rows.length,
+      active: rows.filter((row) => !row.deletedAt).length,
+      deleted: rows.filter((row) => Boolean(row.deletedAt)).length,
+      markdown: rows.filter((row) => (row.fileExtension ?? "").toLowerCase() === "md").length,
+    };
+  }, [documentsQuery.data?.content]);
+
+  const canManageDocument = (document: KnowledgeDocumentRecord) =>
+    canUpdate && (isAdmin || Number(document.uploadedBy) === Number(user?.userId));
+
+  const canRestoreDocument = (document: KnowledgeDocumentRecord) => {
+    if (!document.deletedAt) {
+      return false;
+    }
+    const days = getDaysSince(document.deletedAt);
+    if (isAdmin) {
+      return days <= ADMIN_RESTORE_WINDOW_DAYS;
+    }
+    return Number(document.deletedBy) === Number(user?.userId) && days <= USER_RESTORE_WINDOW_DAYS;
   };
 
-  const handleRestore = (documentId: number) => {
-    const document = documents.find((item) => item.id === documentId);
-    if (!document || !canRestore(actorRole, document.deletedAt)) {
-      showSnackbar("Restore window has expired for the selected role.", "warning");
+  const openCreateDialog = () => {
+    setSelectedDocument(null);
+    setForm(INITIAL_FORM);
+    setFormError(null);
+    setDialogMode("create");
+  };
+
+  const openEditDialog = (document: KnowledgeDocumentRecord) => {
+    setSelectedDocument(document);
+    setForm({
+      title: document.title,
+      category: document.category,
+      audience: document.audience ?? "",
+      description: document.description ?? "",
+      file: null,
+    });
+    setFormError(null);
+    setDialogMode("edit");
+  };
+
+  const handleSubmit = () => {
+    const validationError = validateForm(form, dialogMode);
+    if (validationError) {
+      setFormError(validationError);
       return;
     }
-
-    setDocuments((current) =>
-      current.map((item) =>
-        item.id === documentId
-          ? { ...item, deletedAt: undefined, deletedBy: undefined }
-          : item
-      )
-    );
-    showSnackbar("Document restored successfully.", "success");
+    if (dialogMode === "create") {
+      createMutation.mutate();
+      return;
+    }
+    if (dialogMode === "edit") {
+      updateMutation.mutate();
+    }
   };
+
+  if (!canRead) {
+    return <Alert severity="warning">You do not have read permission for the knowledge base.</Alert>;
+  }
 
   return (
     <Stack spacing={3}>
@@ -244,50 +300,38 @@ export function KnowledgeBasePage() {
         <CardContent sx={{ p: { xs: 2.5, md: 3.25 } }}>
           <Stack direction={{ xs: "column", xl: "row" }} spacing={2.5} justifyContent="space-between">
             <Stack spacing={1.4} sx={{ maxWidth: 760 }}>
-              <Chip
-                label="Knowledge governance blueprint"
-                sx={{ alignSelf: "flex-start", bgcolor: "#dcfce7", color: "#166534", fontWeight: 700 }}
-              />
+              <Chip label="Knowledge governance + storage" sx={{ alignSelf: "flex-start", bgcolor: "#dcfce7", color: "#166534", fontWeight: 700 }} />
               <Typography variant="h3" sx={{ fontWeight: 800, color: "#0f172a", letterSpacing: "-0.03em" }}>
                 Knowledge Base
               </Typography>
-              <Typography sx={{ color: "#475569", maxWidth: 660 }}>
-                Blueprint the SOP and document repository with enterprise-friendly extension controls, metadata,
-                and role-based soft-delete recovery.
+              <Typography sx={{ color: "#475569", maxWidth: 680 }}>
+                Store SOPs, runbooks, reports, media, packaged handovers, and Markdown knowledge articles with real backend persistence, soft delete, and governed recovery.
               </Typography>
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1.1} flexWrap="wrap">
-                <Chip icon={<DescriptionRoundedIcon />} label={`${stats.total} sample records`} sx={{ bgcolor: "#ffffff", color: "#0f172a", fontWeight: 600 }} />
-                <Chip icon={<RestoreFromTrashRoundedIcon />} label={`${stats.recoverable} recoverable for ${actorRole}`} sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontWeight: 700 }} />
-                <Chip icon={<AutoDeleteRoundedIcon />} label={`${stats.expired} outside restore window`} sx={{ bgcolor: "#fee2e2", color: "#b91c1c", fontWeight: 700 }} />
+                <Chip icon={<DescriptionRoundedIcon />} label={`${stats.total} documents`} sx={{ bgcolor: "#ffffff", color: "#0f172a", fontWeight: 600 }} />
+                <Chip icon={<RestoreFromTrashRoundedIcon />} label={`${stats.deleted} soft deleted`} sx={{ bgcolor: "#dbeafe", color: "#1d4ed8", fontWeight: 700 }} />
+                <Chip icon={<LibraryBooksRoundedIcon />} label={`${stats.markdown} markdown articles`} sx={{ bgcolor: "#ede9fe", color: "#6d28d9", fontWeight: 700 }} />
               </Stack>
             </Stack>
 
-            <Paper variant="outlined" sx={{ p: 2, minWidth: { xl: 280 }, borderRadius: 4 }}>
-              <Stack spacing={1.25}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                  View policy as
-                </Typography>
-                <TextField
-                  select
-                  size="small"
-                  value={actorRole}
-                  onChange={(event) => setActorRole(event.target.value as ActorRole)}
-                >
-                  <MenuItem value="admin">Admin (60-day restore)</MenuItem>
-                  <MenuItem value="user">User (30-day restore)</MenuItem>
-                </TextField>
-                <Typography variant="caption" color="text.secondary">
-                  Users can restore deleted documents for 30 days. Admins can recover the same documents for up to 60 days before final purge.
-                </Typography>
-              </Stack>
-            </Paper>
+            <Stack spacing={1.2} alignItems={{ xs: "stretch", xl: "flex-end" }}>
+              {canAccessRestoreBin ? (
+                <Button component={RouterLink} to="/knowledge-base/restore-bin" variant="outlined" sx={{ textTransform: "none", borderRadius: 999 }}>
+                  Open Admin Restore Bin
+                </Button>
+              ) : null}
+              {canCreate ? (
+                <Button variant="contained" startIcon={<UploadFileRoundedIcon />} onClick={openCreateDialog} sx={{ textTransform: "none", borderRadius: 999 }}>
+                  Upload document
+                </Button>
+              ) : null}
+            </Stack>
           </Stack>
         </CardContent>
       </Card>
 
       <Alert severity="info">
-        This page is a front-end governance blueprint for now. The next step is wiring document metadata, storage,
-        versioning, and retention APIs on the backend.
+        The backend accepts any file extension for knowledge storage, including <strong>.md</strong> for Markdown-based SOPs and knowledge articles.
       </Alert>
 
       <Box
@@ -298,10 +342,10 @@ export function KnowledgeBasePage() {
         }}
       >
         {[
-          { label: "Active documents", value: stats.active, tone: "#166534", bg: "#dcfce7" },
-          { label: "Recoverable now", value: stats.recoverable, tone: "#1d4ed8", bg: "#dbeafe" },
-          { label: "Expired restore window", value: stats.expired, tone: "#b91c1c", bg: "#fee2e2" },
-          { label: "Extension families", value: EXTENSION_POLICIES.length, tone: "#6d28d9", bg: "#ede9fe" },
+          { label: "Active documents", value: stats.active, tone: "#166534" },
+          { label: "Deleted documents", value: stats.deleted, tone: "#1d4ed8" },
+          { label: "User restore window", value: `${USER_RESTORE_WINDOW_DAYS} days`, tone: "#9a3412" },
+          { label: "Admin restore window", value: `${ADMIN_RESTORE_WINDOW_DAYS} days`, tone: "#6d28d9" },
         ].map((item) => (
           <Paper key={item.label} sx={{ p: 2.25, borderRadius: 4, border: "1px solid rgba(148, 163, 184, 0.18)" }}>
             <Typography variant="body2" color="text.secondary">
@@ -316,77 +360,85 @@ export function KnowledgeBasePage() {
 
       <Paper sx={{ p: 2.5, borderRadius: 4 }}>
         <Stack direction={{ xs: "column", lg: "row" }} spacing={2} justifyContent="space-between">
-          <Stack spacing={0.7}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <LibraryBooksRoundedIcon color="primary" />
-              <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                Document library prototype
-              </Typography>
-            </Stack>
-            <Typography variant="body2" color="text.secondary">
-              Seeded examples of SOP, runbook, template, archive, and reporting content with role-based restore rules.
-            </Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} sx={{ flexGrow: 1 }}>
+            <TextField size="small" fullWidth label="Search documents" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <TextField select size="small" label="Status" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)} sx={{ minWidth: { xs: "100%", md: 180 } }}>
+              <MenuItem value="all">All</MenuItem>
+              <MenuItem value="active">Active</MenuItem>
+              <MenuItem value="deleted">Deleted</MenuItem>
+              <MenuItem value="my-deleted">My deleted</MenuItem>
+            </TextField>
           </Stack>
-          <TextField
-            size="small"
-            label="Search documents"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            sx={{ minWidth: { xs: "100%", lg: 280 } }}
-          />
+          <Button variant="outlined" onClick={() => documentsQuery.refetch()} sx={{ textTransform: "none" }}>
+            Refresh
+          </Button>
         </Stack>
 
-        <TableContainer sx={{ mt: 2 }}>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Title</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Extension</TableCell>
-                <TableCell>Audience</TableCell>
-                <TableCell>Owner</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Restore</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {filteredDocuments.map((document) => {
-                const restoreAllowed = canRestore(actorRole, document.deletedAt);
-                return (
-                  <TableRow key={document.id} hover>
-                    <TableCell sx={{ fontWeight: 700 }}>{document.title}</TableCell>
-                    <TableCell>{document.category}</TableCell>
-                    <TableCell>{document.extension}</TableCell>
-                    <TableCell>{document.audience}</TableCell>
-                    <TableCell>{document.owner}</TableCell>
-                    <TableCell>
-                      <Chip
-                        size="small"
-                        label={formatDeletedStatus(document)}
-                        color={document.deletedAt ? "warning" : "success"}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {document.deletedAt ? `${restoreAllowed ? "Allowed" : "Expired"} for ${actorRole}` : "-"}
-                    </TableCell>
-                    <TableCell align="right">
-                      {document.deletedAt ? (
-                        <Button size="small" onClick={() => handleRestore(document.id)} disabled={!restoreAllowed}>
-                          Restore
-                        </Button>
-                      ) : (
-                        <Button size="small" color="warning" onClick={() => handleSoftDelete(document.id)}>
-                          Soft delete
-                        </Button>
-                      )}
-                    </TableCell>
+        <Box sx={{ mt: 2 }}>
+          {documentsQuery.isLoading ? (
+            <LoadingState variant="table" rows={6} />
+          ) : documentsQuery.isError ? (
+            <ErrorState message="Unable to load knowledge documents." onRetry={() => documentsQuery.refetch()} />
+          ) : filteredDocuments.length === 0 ? (
+            <EmptyState title="No documents found" description="Upload a knowledge file or adjust the filters." />
+          ) : (
+            <TableContainer>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Title</TableCell>
+                    <TableCell>File</TableCell>
+                    <TableCell>Extension</TableCell>
+                    <TableCell>Category</TableCell>
+                    <TableCell>Audience</TableCell>
+                    <TableCell>Owner</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Updated</TableCell>
+                    <TableCell align="right">Actions</TableCell>
                   </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {filteredDocuments.map((document) => (
+                    <TableRow key={document.id} hover>
+                      <TableCell sx={{ fontWeight: 700 }}>{document.title}</TableCell>
+                      <TableCell>{document.fileName}</TableCell>
+                      <TableCell>{document.fileExtension ? `.${document.fileExtension}` : "-"}</TableCell>
+                      <TableCell>{document.category}</TableCell>
+                      <TableCell>{document.audience ?? "-"}</TableCell>
+                      <TableCell>{document.uploadedByName ?? `User ${document.uploadedBy}`}</TableCell>
+                      <TableCell>
+                        <Chip size="small" label={formatStatus(document)} color={document.deletedAt ? "warning" : "success"} />
+                      </TableCell>
+                      <TableCell>{formatDate(document.updatedAt)}</TableCell>
+                      <TableCell align="right">
+                        <Stack direction="row" spacing={0.75} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                          <Button size="small" startIcon={<DownloadRoundedIcon />} onClick={() => void downloadKnowledgeDocument(document.id, document.fileName)}>
+                            Download
+                          </Button>
+                          {!document.deletedAt && canManageDocument(document) ? (
+                            <>
+                              <Button size="small" startIcon={<EditRoundedIcon />} onClick={() => openEditDialog(document)}>
+                                Edit
+                              </Button>
+                              <Button size="small" color="warning" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => deleteMutation.mutate(document.id)} disabled={deleteMutation.isPending}>
+                                Soft delete
+                              </Button>
+                            </>
+                          ) : null}
+                          {document.deletedAt && canRestoreDocument(document) ? (
+                            <Button size="small" onClick={() => restoreMutation.mutate(document.id)} disabled={restoreMutation.isPending}>
+                              Restore
+                            </Button>
+                          ) : null}
+                        </Stack>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+        </Box>
       </Paper>
 
       <Paper sx={{ p: 2.5, borderRadius: 4 }}>
@@ -401,8 +453,8 @@ export function KnowledgeBasePage() {
             <TableHead>
               <TableRow>
                 <TableCell>Category</TableCell>
-                <TableCell>Extensions</TableCell>
-                <TableCell>Primary use case</TableCell>
+                <TableCell>Example extensions</TableCell>
+                <TableCell>Primary use</TableCell>
                 <TableCell>Governance notes</TableCell>
               </TableRow>
             </TableHead>
@@ -422,43 +474,6 @@ export function KnowledgeBasePage() {
 
       <Paper sx={{ p: 2.5, borderRadius: 4 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
-          Retention and recovery rules
-        </Typography>
-        <Box
-          sx={{
-            display: "grid",
-            gap: 2,
-            gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" },
-          }}
-        >
-          {[
-            {
-              title: "User restore window",
-              description: "Users can restore their deleted documents for 30 days. After that, the item remains visible only to administrators for governance handling.",
-            },
-            {
-              title: "Admin recovery override",
-              description: "Administrators can restore or review soft-deleted files for up to 60 days, supporting compliance, audits, and accidental deletion recovery.",
-            },
-            {
-              title: "Permanent purge",
-              description: "After day 60, documents should be permanently purged by a scheduled retention job with audit evidence preserved.",
-            },
-          ].map((rule) => (
-            <Paper key={rule.title} variant="outlined" sx={{ p: 2.25, borderRadius: 3 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {rule.title}
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                {rule.description}
-              </Typography>
-            </Paper>
-          ))}
-        </Box>
-      </Paper>
-
-      <Paper sx={{ p: 2.5, borderRadius: 4 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 1.5 }}>
           Enterprise implementation backlog
         </Typography>
         <Stack spacing={1.1}>
@@ -473,12 +488,41 @@ export function KnowledgeBasePage() {
         </Stack>
       </Paper>
 
-      <PageSnackbar
-        open={snackbar.open}
-        message={snackbar.message}
-        severity={snackbar.severity}
-        onClose={() => setSnackbar((current) => ({ ...current, open: false }))}
-      />
+      <Dialog open={dialogMode !== null} onClose={() => setDialogMode(null)} fullWidth maxWidth="sm">
+        <DialogTitle>{dialogMode === "create" ? "Upload knowledge document" : "Edit knowledge metadata"}</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 0.5 }}>
+            {formError ? <Alert severity="error">{formError}</Alert> : null}
+            <TextField size="small" label="Title" value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} fullWidth required />
+            <TextField size="small" label="Category" value={form.category} onChange={(event) => setForm((current) => ({ ...current, category: event.target.value }))} fullWidth required />
+            <TextField size="small" label="Audience" value={form.audience ?? ""} onChange={(event) => setForm((current) => ({ ...current, audience: event.target.value }))} fullWidth />
+            <TextField size="small" label="Description" value={form.description ?? ""} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} fullWidth multiline minRows={3} />
+            {dialogMode === "create" ? (
+              <Button variant="outlined" component="label" sx={{ textTransform: "none" }}>
+                {form.file ? `Selected: ${form.file.name}` : "Choose file"}
+                <input
+                  hidden
+                  type="file"
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      file: event.target.files?.[0] ?? null,
+                    }))
+                  }
+                />
+              </Button>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogMode(null)}>Cancel</Button>
+          <Button variant="contained" onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
+            {dialogMode === "create" ? "Upload" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <PageSnackbar open={snackbar.open} message={snackbar.message} severity={snackbar.severity} onClose={() => setSnackbar((current) => ({ ...current, open: false }))} />
     </Stack>
   );
 }

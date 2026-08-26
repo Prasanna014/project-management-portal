@@ -24,6 +24,9 @@ public class Notification {
     @Column(name = "task_id")
     private Long taskId;
 
+    @Column(name = "project_id")
+    private Long projectId;
+
     @Column(name = "title", nullable = false)
     private String title;
 

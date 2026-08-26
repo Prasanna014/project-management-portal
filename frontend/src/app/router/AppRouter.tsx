@@ -10,9 +10,14 @@ import { ProjectsPage } from "@modules/projects/pages/ProjectsPage";
 import { TasksPage } from "@modules/tasks/pages/TasksPage";
 import { ReportsPage } from "@modules/reports/pages/ReportsPage";
 import { UsersPage } from "@modules/users/pages/UsersPage";
+import { UserProfilePage } from "@modules/users/pages/UserProfilePage";
 import { KnowledgeBasePage } from "@modules/knowledge-base/pages/KnowledgeBasePage";
+import { KnowledgeRestoreBinPage } from "@modules/knowledge-base/pages/KnowledgeRestoreBinPage";
 import { AdministrationPage } from "@modules/administration/pages/AdministrationPage";
 import { SettingsPage } from "@modules/settings/pages/SettingsPage";
+import { SearchPage } from "@modules/search/pages/SearchPage";
+import { NotificationsPage } from "@modules/notifications/pages/NotificationsPage";
+import { CalendarPage } from "@modules/calendar/pages/CalendarPage";
 import CreateTaskPage from "../../pages/CreateTaskPage";
 import TaskDetailsPage from "../../pages/TaskDetailsPage";
 import { useAuth } from "@features/auth/context/AuthContext";
@@ -53,11 +58,16 @@ export function AppRouter() {
           <Route path="/workspace" element={<WorkspacePage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/create-task" element={<CreateTaskPage />} />
           <Route path="/task/:taskId" element={<TaskDetailsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/users" element={<UsersPage />} />
           <Route path="/knowledge-base" element={<KnowledgeBasePage />} />
+          <Route path="/knowledge-base/restore-bin" element={<KnowledgeRestoreBinPage />} />
+          <Route path="/profile" element={<UserProfilePage />} />
           <Route path="/administration" element={<AdministrationPage />} />
           <Route path="/administration/:moduleKey" element={<AdministrationPage />} />
           <Route path="/settings" element={<SettingsPage />} />

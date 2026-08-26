@@ -31,6 +31,16 @@ public class UserDto {
 
     private Boolean passwordChangeRequired;
 
+    private Long departmentId;
+
+    private String departmentName;
+
+    private String designation;
+
+    private Long reportingManagerId;
+
+    private String reportingManagerName;
+
     private String temporaryPassword;
 
     private String accountStatus;
@@ -38,6 +48,8 @@ public class UserDto {
     private String onboardingAccessLink;
 
     private String passwordResetLink;
+
+    private String emailDeliveryStatus;
 
     private LocalDateTime invitationExpiresAt;
 

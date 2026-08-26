@@ -19,6 +19,7 @@ public class NotificationDto {
     private Long userId;
 
     private Long taskId;
+    private Long projectId;
 
     @NotBlank(message = "Notification title is required")
     private String title;

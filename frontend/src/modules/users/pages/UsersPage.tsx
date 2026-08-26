@@ -41,10 +41,12 @@ import { PageSnackbar, type SnackbarSeverity } from "@shared/ui/feedback/PageSna
 import {
   adminResetUserPassword,
   createUser,
+  fetchDepartmentOptions,
   fetchUsers,
   resendUserInvite,
   updateUser,
   updateUserAccountStatus,
+  type DepartmentOption,
   type UpsertUserPayload,
   type UserRecord,
 } from "@modules/users/services/usersApi";
@@ -67,6 +69,9 @@ const INITIAL_FORM: UserFormState = {
   email: "",
   role: "CONTRIBUTOR",
   active: true,
+  departmentId: null,
+  designation: "",
+  reportingManagerId: null,
 };
 
 const ACCESS_BLUEPRINT: AccessBlueprint[] = [
@@ -181,6 +186,12 @@ export function UsersPage() {
     enabled: canRead,
   });
 
+  const departmentsQuery = useQuery({
+    queryKey: ["user-departments"],
+    queryFn: fetchDepartmentOptions,
+    enabled: canRead,
+  });
+
   const reloadUsers = async () => {
     await queryClient.invalidateQueries({ queryKey: ["users-directory"] });
   };
@@ -270,6 +281,11 @@ export function UsersPage() {
     });
   }, [search, statusFilter, usersQuery.data]);
 
+  const managerOptions = useMemo(
+    () => (usersQuery.data ?? []).filter((user) => user.id !== selectedUser?.id),
+    [selectedUser?.id, usersQuery.data]
+  );
+
   const stats = useMemo(() => {
     const users = usersQuery.data ?? [];
     return {
@@ -299,6 +315,9 @@ export function UsersPage() {
       email: user.email,
       role: user.role ?? "CONTRIBUTOR",
       active: user.active,
+      departmentId: user.departmentId ?? null,
+      designation: user.designation ?? "",
+      reportingManagerId: user.reportingManagerId ?? null,
     });
     setFormError(null);
     setDialogMode("edit");
@@ -317,6 +336,9 @@ export function UsersPage() {
       email: form.email.trim(),
       role: form.role?.trim() || undefined,
       active: form.active,
+      departmentId: form.departmentId ?? null,
+      designation: form.designation?.trim() || null,
+      reportingManagerId: form.reportingManagerId ?? null,
     };
 
     if (dialogMode === "create") {
@@ -459,8 +481,12 @@ export function UsersPage() {
                     <TableCell>Employee ID</TableCell>
                     <TableCell>Full Name</TableCell>
                     <TableCell>Email</TableCell>
+                    <TableCell>Department</TableCell>
+                    <TableCell>Designation</TableCell>
+                    <TableCell>Reporting Manager</TableCell>
                     <TableCell>Role</TableCell>
                     <TableCell>Status</TableCell>
+                    <TableCell>Last Login</TableCell>
                     <TableCell>Created</TableCell>
                     <TableCell align="right">Actions</TableCell>
                   </TableRow>
@@ -471,6 +497,9 @@ export function UsersPage() {
                       <TableCell sx={{ fontWeight: 700 }}>{user.employeeId}</TableCell>
                       <TableCell>{user.fullName}</TableCell>
                       <TableCell>{user.email}</TableCell>
+                      <TableCell>{user.departmentName ?? "-"}</TableCell>
+                      <TableCell>{user.designation ?? "-"}</TableCell>
+                      <TableCell>{user.reportingManagerName ?? "-"}</TableCell>
                       <TableCell>{user.role ?? "-"}</TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.8} useFlexGap flexWrap="wrap">
@@ -479,6 +508,7 @@ export function UsersPage() {
                           {user.passwordChangeRequired ? <Chip size="small" label="Password setup required" color="warning" /> : null}
                         </Stack>
                       </TableCell>
+                      <TableCell>{formatDate(user.lastLoginAt)}</TableCell>
                       <TableCell>{formatDate(user.createdAt)}</TableCell>
                       <TableCell align="right">
                         {canUpdate ? (
@@ -630,15 +660,68 @@ export function UsersPage() {
                 </MenuItem>
               ))}
             </TextField>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={form.active}
-                  onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
-                />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              label="Department"
+              value={form.departmentId ? String(form.departmentId) : ""}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  departmentId: event.target.value ? Number(event.target.value) : null,
+                }))
               }
-              label="Active"
+            >
+              <MenuItem value="">No department</MenuItem>
+              {(departmentsQuery.data ?? []).map((department: DepartmentOption) => (
+                <MenuItem key={department.id} value={department.id}>
+                  {department.departmentName} ({department.departmentCode})
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              size="small"
+              fullWidth
+              label="Designation"
+              value={form.designation ?? ""}
+              onChange={(event) => setForm((current) => ({ ...current, designation: event.target.value }))}
             />
+            <TextField
+              select
+              size="small"
+              fullWidth
+              label="Reporting manager"
+              value={form.reportingManagerId ? String(form.reportingManagerId) : ""}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  reportingManagerId: event.target.value ? Number(event.target.value) : null,
+                }))
+              }
+            >
+              <MenuItem value="">No reporting manager</MenuItem>
+              {managerOptions.map((manager) => (
+                <MenuItem key={manager.id} value={manager.id}>
+                  {manager.fullName} ({manager.employeeId})
+                </MenuItem>
+              ))}
+            </TextField>
+            {dialogMode === "edit" ? (
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={form.active}
+                    onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
+                  />
+                }
+                label="Active"
+              />
+            ) : (
+              <Alert severity="info">
+                New users are created as invited accounts. They become active after opening the activation link and setting their password.
+              </Alert>
+            )}
           </Stack>
         </DialogContent>
         <DialogActions>
@@ -666,7 +749,11 @@ export function UsersPage() {
               fullWidth
               InputProps={{ readOnly: true }}
             />
+            <TextField label="Department" value={createdUser?.departmentName ?? "-"} fullWidth InputProps={{ readOnly: true }} />
+            <TextField label="Designation" value={createdUser?.designation ?? "-"} fullWidth InputProps={{ readOnly: true }} />
+            <TextField label="Reporting manager" value={createdUser?.reportingManagerName ?? "-"} fullWidth InputProps={{ readOnly: true }} />
             <TextField label="Account status" value={formatAccountStatus(createdUser?.accountStatus)} fullWidth InputProps={{ readOnly: true }} />
+            {createdUser?.emailDeliveryStatus ? <Alert severity="info">{createdUser.emailDeliveryStatus}</Alert> : null}
             {createdUser?.onboardingAccessLink ? (
               <Alert severity="info">
                 Invite link:{" "}

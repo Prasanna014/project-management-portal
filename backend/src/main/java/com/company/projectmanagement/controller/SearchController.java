@@ -2,6 +2,7 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.TaskDto;
 import com.company.projectmanagement.dto.ProjectDto;
+import com.company.projectmanagement.dto.SearchCommentResultDto;
 import com.company.projectmanagement.service.SearchService;
 
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,11 @@ public class SearchController {
     @GetMapping("/projects")
     public ResponseEntity<List<ProjectDto>> searchProjects(@RequestParam String keyword) {
         return ResponseEntity.ok(service.searchProjects(keyword));
+    }
+
+    @GetMapping("/comments")
+    public ResponseEntity<List<SearchCommentResultDto>> searchComments(@RequestParam String keyword) {
+        return ResponseEntity.ok(service.searchComments(keyword));
     }
 
     /* ================= GLOBAL SEARCH ================= */
