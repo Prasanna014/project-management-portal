@@ -1,5 +1,6 @@
 import { httpClient } from "@shared/api/httpClient";
 import type { AuthUser } from "@features/auth/context/AuthContext";
+import type { UserRecord } from "@modules/users/services/usersApi";
 
 export type LoginRequest = {
   email: string;
@@ -13,6 +14,7 @@ type LoginResponse = {
   userId: number;
   email: string;
   authorities: string[];
+  passwordChangeRequired?: boolean;
 };
 
 export async function loginWithPassword(payload: LoginRequest): Promise<{ token: string; user: AuthUser }> {
@@ -25,6 +27,22 @@ export async function loginWithPassword(payload: LoginRequest): Promise<{ token:
       userId: body.userId,
       email: body.email,
       authorities: body.authorities ?? [],
+      passwordChangeRequired: body.passwordChangeRequired ?? false,
     },
   };
+}
+
+export async function activateInvitation(token: string, newPassword: string): Promise<UserRecord> {
+  const response = await httpClient.post<UserRecord>("/auth/activate", { token, newPassword });
+  return response.data;
+}
+
+export async function requestForgotPassword(email: string): Promise<UserRecord> {
+  const response = await httpClient.post<UserRecord>("/auth/forgot-password", { email });
+  return response.data;
+}
+
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<UserRecord> {
+  const response = await httpClient.post<UserRecord>("/auth/reset-password", { token, newPassword });
+  return response.data;
 }

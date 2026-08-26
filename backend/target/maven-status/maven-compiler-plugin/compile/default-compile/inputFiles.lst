@@ -23,6 +23,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\UserController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\WorkflowAdminController.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\controller\WorkLogController.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ActivateInvitationRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ActivityHistoryDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\AppTimeZoneDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\AuditLogDto.java
@@ -35,6 +36,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\DepartmentRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\DepartmentResponseDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\DepartmentValidationDto.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ForgotPasswordRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\HolidayDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\NotificationDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\OrgLocationDto.java
@@ -48,6 +50,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ProjectMemberRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ProjectMemberResponseDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ReportDto.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\ResetPasswordWithTokenRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\RolePermissionAssignmentRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\RolePermissionAssignmentResponseDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\RolePermissionAssignmentValidationDto.java
@@ -70,6 +73,7 @@ C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\UserRoleAssignmentRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\UserRoleAssignmentResponseDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\UserRoleAssignmentValidationDto.java
+C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\UserStatusUpdateRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\WorkflowDefinitionRequestDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\WorkflowDefinitionResponseDto.java
 C:\Users\PR20680954\Desktop\project-management-portal\project-management-portal\backend\src\main\java\com\company\projectmanagement\dto\WorkflowDefinitionValidationDto.java

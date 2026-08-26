@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
+  Link,
   MenuItem,
   Paper,
   Stack,
@@ -23,20 +24,21 @@ import {
 } from "@mui/material";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { httpClient } from "@shared/api/httpClient";
 import { PageSnackbar } from "@shared/ui/feedback/PageSnackbar";
 import { LoadingState } from "@shared/ui/states/LoadingState";
 import { ErrorState } from "@shared/ui/states/ErrorState";
 import { EmptyState } from "@shared/ui/states/EmptyState";
+import {
+  adminResetUserPassword,
+  createUser,
+  fetchUsers,
+  resendUserInvite,
+  updateUser,
+  updateUserAccountStatus,
+  type UserRecord,
+} from "@modules/users/services/usersApi";
 
-type UserDto = {
-  id: number;
-  employeeId: string;
-  fullName: string;
-  email: string;
-  role: string;
-  active: boolean;
-};
+type UserDto = UserRecord;
 
 type FormState = {
   employeeId: string;
@@ -48,11 +50,16 @@ type FormState = {
 
 const emptyForm: FormState = { employeeId: "", fullName: "", email: "", role: "", active: true };
 
+function formatStatus(status?: string | null) {
+  return status ? status.replaceAll("_", " ") : "Unknown";
+}
+
 export function UserAdminPanel() {
   const queryClient = useQueryClient();
   const [keyword, setKeyword] = useState("");
   const [dialogMode, setDialogMode] = useState<"create" | "edit" | null>(null);
   const [editUser, setEditUser] = useState<UserDto | null>(null);
+  const [createdUser, setCreatedUser] = useState<UserDto | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" as "success" | "error" | "info" });
@@ -62,10 +69,7 @@ export function UserAdminPanel() {
 
   const usersQuery = useQuery({
     queryKey: ["admin-users"],
-    queryFn: async () => {
-      const res = await httpClient.get<UserDto[]>("/users");
-      return res.data;
-    },
+    queryFn: fetchUsers,
   });
 
   const filtered = (usersQuery.data ?? []).filter((u) =>
@@ -75,15 +79,38 @@ export function UserAdminPanel() {
   const reload = () => queryClient.invalidateQueries({ queryKey: ["admin-users"] });
 
   const createMutation = useMutation({
-    mutationFn: () => httpClient.post("/users", form),
-    onSuccess: () => { reload(); setDialogMode(null); showSnackbar("User created.", "success"); },
+    mutationFn: () => createUser(form),
+    onSuccess: (response) => {
+      reload();
+      setDialogMode(null);
+      setCreatedUser(response);
+      showSnackbar("User created.", "success");
+    },
     onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: () => httpClient.put(`/api/users/${editUser!.id}`, form),
+    mutationFn: () => updateUser(editUser!.id, form),
     onSuccess: () => { reload(); setDialogMode(null); showSnackbar("User updated.", "success"); },
     onError: (e) => { setFormError((e as Error).message); showSnackbar((e as Error).message, "error"); },
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: (userId: number) => resendUserInvite(userId),
+    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Invite regenerated.", "success"); },
+    onError: (e) => showSnackbar((e as Error).message, "error"),
+  });
+
+  const adminResetMutation = useMutation({
+    mutationFn: (userId: number) => adminResetUserPassword(userId),
+    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Reset link generated.", "success"); },
+    onError: (e) => showSnackbar((e as Error).message, "error"),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ userId, accountStatus }: { userId: number; accountStatus: string }) => updateUserAccountStatus(userId, accountStatus),
+    onSuccess: (user) => { reload(); setCreatedUser(user); showSnackbar("Status updated.", "success"); },
+    onError: (e) => showSnackbar((e as Error).message, "error"),
   });
 
   const handleOpenCreate = () => {
@@ -153,10 +180,23 @@ export function UserAdminPanel() {
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.role ?? "-"}</TableCell>
                     <TableCell>
-                      <Chip size="small" label={user.active ? "Active" : "Inactive"} color={user.active ? "success" : "default"} />
+                      <Stack direction="row" spacing={0.8} useFlexGap flexWrap="wrap">
+                        <Chip size="small" label={user.active ? "Active" : "Inactive"} color={user.active ? "success" : "default"} />
+                        <Chip size="small" label={formatStatus(user.accountStatus)} color={user.accountStatus === "ACTIVE" ? "success" : "default"} />
+                        {user.passwordChangeRequired ? <Chip size="small" label="Password setup required" color="warning" /> : null}
+                      </Stack>
                     </TableCell>
                     <TableCell align="right">
-                      <Button size="small" onClick={() => handleOpenEdit(user)}>Edit</Button>
+                      <Stack direction="row" spacing={0.5} justifyContent="flex-end" flexWrap="wrap" useFlexGap>
+                        <Button size="small" onClick={() => handleOpenEdit(user)}>Edit</Button>
+                        <Button size="small" onClick={() => resendInviteMutation.mutate(user.id)} disabled={resendInviteMutation.isPending}>Resend invite</Button>
+                        <Button size="small" onClick={() => adminResetMutation.mutate(user.id)} disabled={adminResetMutation.isPending}>Reset password</Button>
+                        {user.accountStatus === "SUSPENDED" ? (
+                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "ACTIVE" })} disabled={statusMutation.isPending}>Reactivate</Button>
+                        ) : (
+                          <Button size="small" onClick={() => statusMutation.mutate({ userId: user.id, accountStatus: "SUSPENDED" })} disabled={statusMutation.isPending}>Suspend</Button>
+                        )}
+                      </Stack>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -192,6 +232,38 @@ export function UserAdminPanel() {
           <Button variant="contained" onClick={() => dialogMode === "create" ? createMutation.mutate() : updateMutation.mutate()} disabled={createMutation.isPending || updateMutation.isPending}>
             {dialogMode === "create" ? "Create" : "Update"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(createdUser)} onClose={() => setCreatedUser(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>User onboarding</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <Alert severity="success">
+              Admin now provisions accounts using invite and reset links instead of sharing passwords directly.
+            </Alert>
+            <TextField size="small" fullWidth label="Login email" value={createdUser?.email ?? ""} InputProps={{ readOnly: true }} />
+            <TextField size="small" fullWidth label="Account status" value={formatStatus(createdUser?.accountStatus)} InputProps={{ readOnly: true }} />
+            {createdUser?.onboardingAccessLink ? (
+              <Alert severity="info">
+                Invite link:{" "}
+                <Link href={createdUser.onboardingAccessLink} target="_blank" rel="noreferrer">
+                  activate account
+                </Link>
+              </Alert>
+            ) : null}
+            {createdUser?.passwordResetLink ? (
+              <Alert severity="warning">
+                Reset link:{" "}
+                <Link href={createdUser.passwordResetLink} target="_blank" rel="noreferrer">
+                  reset password
+                </Link>
+              </Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCreatedUser(null)}>Close</Button>
         </DialogActions>
       </Dialog>
 

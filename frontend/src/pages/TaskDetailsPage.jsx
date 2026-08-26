@@ -27,7 +27,6 @@ import {
 import { useParams, useNavigate } from "react-router-dom";
 import EditIcon from "@mui/icons-material/Edit";
 import CloseIcon from "@mui/icons-material/Close";
-import DeleteIcon from "@mui/icons-material/Delete";
 import SendIcon from "@mui/icons-material/Send";
 import DownloadIcon from "@mui/icons-material/Download";
 import NavigateNextIcon from "@mui/icons-material/NavigateNext";
@@ -52,6 +51,8 @@ import CommentTimeline from "../components/CommentTimeline";
 import AttachmentTable from "../components/AttachmentTable";
 import MarkdownRenderer from "../components/MarkdownRenderer";
 import { useProject } from "../contexts/ProjectContext";
+import { useAuth } from "../features/auth/context/AuthContext";
+import { canModifyTask, isTaskAdministrator } from "../modules/tasks/utils/taskAccess";
 
 import {
   addTaskDetailsComment,
@@ -171,7 +172,8 @@ export default function TaskDetailsPage() {
   const params        = useParams();
   const navigate      = useNavigate();
   const taskId        = params.taskId;
-  const currentUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
+  const { user }      = useAuth();
+  const currentUserId = user?.userId ?? null;
   const usingMockData = isTaskDetailsMockMode;
   const commentInputRef = useRef(null);
   const commentsBoxRef  = useRef(null);
@@ -199,7 +201,6 @@ export default function TaskDetailsPage() {
   const [transitionComment,     setTransitionComment]     = useState("");
   const [openPriorityDialog,  setOpenPriorityDialog]  = useState(false);
   const [openOwnershipDialog, setOpenOwnershipDialog] = useState(false);
-  const [openDeleteDialog,    setOpenDeleteDialog]    = useState(false);
   const [statusAnchorEl,      setStatusAnchorEl]      = useState(null);
   const [priorityAnchorEl,    setPriorityAnchorEl]    = useState(null);
   const [ownerAnchorEl,       setOwnerAnchorEl]       = useState(null);
@@ -303,6 +304,7 @@ export default function TaskDetailsPage() {
 
 
   const handleOpenStatusDialog = async () => {
+    if (!ensureTaskCanBeModified()) return;
     try {
       const { getAvailableTransitions } = await import("../services/taskService");
       const transitions = await getAvailableTransitions(taskId);
@@ -316,6 +318,7 @@ export default function TaskDetailsPage() {
   };
 
   const handleStatusChange = async () => {
+    if (!ensureTaskCanBeModified()) return;
     if (!selectedTransition) return;
     if (selectedTransition.requiresComment && !transitionComment.trim()) {
       setError("A comment is required for this transition.");
@@ -346,6 +349,7 @@ export default function TaskDetailsPage() {
   };
 
   const handlePriorityChange = async (newPriority) => {
+    if (!ensureTaskCanBeModified()) return;
     const snapshot = task;
     try {
       setOpenPriorityDialog(false);
@@ -361,6 +365,7 @@ export default function TaskDetailsPage() {
   };
 
   const handleOwnershipChange = async (newOwnerId) => {
+    if (!ensureTaskCanBeModified()) return;
     const snapshot = task;
     try {
       setOpenOwnershipDialog(false);
@@ -377,6 +382,7 @@ export default function TaskDetailsPage() {
   };
 
   const openEditTaskDialog = () => {
+    if (!ensureTaskCanBeModified()) return;
     setEditForm({
       issueActionItem: task.issueActionItem || "",
       description: task.description || "",
@@ -389,6 +395,7 @@ export default function TaskDetailsPage() {
   };
 
   const handleEditSave = async () => {
+    if (!ensureTaskCanBeModified()) return;
     if (!editForm.issueActionItem.trim()) {
       setError("Task name is required");
       return;
@@ -427,6 +434,7 @@ export default function TaskDetailsPage() {
   };
 
   const handleLogTime = async () => {
+    if (!ensureTaskCanBeModified()) return;
     const hours = parseFloat(logHoursInput);
     if (isNaN(hours) || hours <= 0) { setError("Please enter valid hours (e.g. 1.5)"); return; }
     if (!logTimeNote.trim()) { setError("Note is required — describe what you worked on"); return; }
@@ -472,17 +480,11 @@ export default function TaskDetailsPage() {
     }
   };
 
-  const handleDeleteTask = async () => {
-    try {
-      setOpenDeleteDialog(false);
-      setSubmitting(true);
-      setSuccess("Task deleted successfully");
-      setTimeout(() => navigate("/tasks"), 1500);
-    } catch (err) { setError(`Failed to delete task: ${err.message}`); }
-    finally       { setSubmitting(false); }
-  };
-
   const handleTitleSave = async () => {
+    if (!ensureTaskCanBeModified()) {
+      setEditingTitle(false);
+      return;
+    }
     const trimmed = titleDraft.trim();
     setEditingTitle(false);
     if (!trimmed || trimmed === task.issueActionItem) return;
@@ -629,6 +631,16 @@ export default function TaskDetailsPage() {
   const isOverLogged  = estimatedHrs > 0 && loggedHrs > estimatedHrs;
   const progressPct   = estimatedHrs > 0 ? Math.min(100, Math.round((loggedHrs / estimatedHrs) * 100)) : 0;
   const progressColor = isOverLogged ? "#ef4444" : progressPct >= 80 ? "#f59e0b" : "#3b82f6";
+  const canManageCurrentTask = canModifyTask(task, user);
+  const taskAdmin = isTaskAdministrator(user);
+
+  const ensureTaskCanBeModified = () => {
+    if (canManageCurrentTask) return true;
+    setError(taskAdmin
+      ? "This ticket is currently read only."
+      : "You can view all tickets, but only edit tickets you own or created.");
+    return false;
+  };
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
@@ -647,6 +659,11 @@ export default function TaskDetailsPage() {
       {usingMockData && (
         <Alert severity="info" sx={{ borderRadius: "8px" }}>
           Running in development mock mode
+        </Alert>
+      )}
+      {!canManageCurrentTask && (
+        <Alert severity="info" sx={{ borderRadius: "8px" }}>
+          View-only mode: you can see this ticket, but only the ticket owner/creator or an admin can modify it.
         </Alert>
       )}
 
@@ -714,12 +731,16 @@ export default function TaskDetailsPage() {
               ) : (
                 <Typography
                   variant="h5"
-                  onClick={() => { setTitleDraft(task.issueActionItem); setEditingTitle(true); }}
-                  title="Click to edit title"
+                  onClick={() => {
+                    if (!ensureTaskCanBeModified()) return;
+                    setTitleDraft(task.issueActionItem);
+                    setEditingTitle(true);
+                  }}
+                  title={canManageCurrentTask ? "Click to edit title" : "View only"}
                   sx={{
                     fontWeight: 700, color: "#111827", lineHeight: 1.3,
-                    cursor: "text", borderRadius: "6px", px: 0.5, mx: -0.5,
-                    "&:hover": { bgcolor: "rgba(37,99,235,0.05)" },
+                    cursor: canManageCurrentTask ? "text" : "default", borderRadius: "6px", px: 0.5, mx: -0.5,
+                    "&:hover": canManageCurrentTask ? { bgcolor: "rgba(37,99,235,0.05)" } : undefined,
                     transition: "background 0.15s",
                   }}
                 >
@@ -877,12 +898,14 @@ export default function TaskDetailsPage() {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
             <Button variant="contained" size="small" startIcon={<EditIcon fontSize="small" />}
               onClick={openEditTaskDialog}
+              disabled={!canManageCurrentTask}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    bgcolor: "#4F46E5", "&:hover": { bgcolor: "#4338CA" } }}>
               Edit Ticket
             </Button>
             <Button variant="outlined" size="small" startIcon={<SwapHorizIcon fontSize="small" />}
               onClick={handleOpenStatusDialog}
+              disabled={!canManageCurrentTask}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    borderColor: "#E2E8F0", color: "#374151",
                    "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
@@ -890,6 +913,7 @@ export default function TaskDetailsPage() {
             </Button>
             <Button variant="outlined" size="small"
               onClick={() => setOpenPriorityDialog(true)}
+              disabled={!canManageCurrentTask}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    borderColor: "#E2E8F0", color: "#374151",
                    "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
@@ -897,17 +921,14 @@ export default function TaskDetailsPage() {
             </Button>
             <Button variant="outlined" size="small" startIcon={<PersonOutlineIcon fontSize="small" />}
               onClick={() => setOpenOwnershipDialog(true)}
+              disabled={!canManageCurrentTask}
               sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem",
                    borderColor: "#E2E8F0", color: "#374151",
                    "&:hover": { borderColor: "#4F46E5", color: "#4F46E5", bgcolor: "#EEF2FF" } }}>
               Assign Engineer
             </Button>
             <Box sx={{ flex: 1 }} />
-            <Button variant="outlined" size="small" color="error" startIcon={<DeleteIcon fontSize="small" />}
-              onClick={() => setOpenDeleteDialog(true)}
-              sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, fontSize: "0.82rem" }}>
-              Delete Ticket
-            </Button>
+            <Chip size="small" color="warning" label="Deletion disabled" />
           </Box>
         </CardContent>
       </Card>
@@ -1600,26 +1621,6 @@ export default function TaskDetailsPage() {
               boxShadow: "0 8px 16px rgba(79, 70, 229, 0.25)",
             }}>
             {submitting ? "Saving..." : "Save Changes"}
-          </Button>
-        </Box>
-      </Dialog>
-
-      <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}
-        PaperProps={{ sx: { borderRadius: "12px", minWidth: 320 } }}>
-        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem" }}>Delete Task</DialogTitle>
-        <DialogContent>
-          <Typography sx={{ color: "#6b7280", fontSize: "0.9rem" }}>
-            Are you sure you want to delete this task? This action cannot be undone.
-          </Typography>
-        </DialogContent>
-        <Box sx={{ p: 2, pt: 0, display: "flex", gap: 1, justifyContent: "flex-end" }}>
-          <Button variant="outlined" onClick={() => setOpenDeleteDialog(false)}
-            sx={{ borderRadius: "8px", textTransform: "none" }}>
-            Cancel
-          </Button>
-          <Button variant="contained" color="error" onClick={handleDeleteTask} disabled={submitting}
-            sx={{ borderRadius: "8px", textTransform: "none" }}>
-            {submitting ? "Deleting…" : "Delete"}
           </Button>
         </Box>
       </Dialog>

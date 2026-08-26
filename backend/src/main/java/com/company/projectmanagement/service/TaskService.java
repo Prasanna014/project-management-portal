@@ -16,8 +16,10 @@ import com.company.projectmanagement.repository.TaskRepository;
 import com.company.projectmanagement.repository.TaskStatusRepository;
 import com.company.projectmanagement.repository.WorkflowStateRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.Objects;
@@ -60,9 +62,10 @@ public class TaskService {
 
     /* ================= UPDATE ================= */
     @Transactional
-    public TaskDto updateTask(Long id, TaskDto dto) {
+    public TaskDto updateTask(Long id, TaskDto dto, Long actingUserId, boolean canManageAllTasks) {
         Task existing = taskRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        ensureTaskUpdateAccess(existing, actingUserId, canManageAllTasks);
 
         ResolvedTaskCatalog resolved = resolveCatalogValues(dto, true);
 
@@ -90,9 +93,25 @@ public class TaskService {
     /* ================= DELETE ================= */
     @Transactional
     public void deleteTask(Long id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
-        taskRepository.delete(task);
+        throw new ResponseStatusException(HttpStatus.METHOD_NOT_ALLOWED,
+                "Ticket deletion is disabled. Close or archive the ticket instead.");
+    }
+
+    private void ensureTaskUpdateAccess(Task existing, Long actingUserId, boolean canManageAllTasks) {
+        if (canManageAllTasks) {
+            return;
+        }
+
+        if (actingUserId == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user is required");
+        }
+
+        boolean ownsTask = Objects.equals(existing.getOwnerId(), actingUserId)
+                || Objects.equals(existing.getCreatedBy(), actingUserId);
+        if (!ownsTask) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "You can only modify tickets that you own or created.");
+        }
     }
 
     /* ================= MAPPER ================= */

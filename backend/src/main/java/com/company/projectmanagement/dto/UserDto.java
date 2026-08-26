@@ -29,6 +29,22 @@ public class UserDto {
 
     private Boolean active;
 
+    private Boolean passwordChangeRequired;
+
+    private String temporaryPassword;
+
+    private String accountStatus;
+
+    private String onboardingAccessLink;
+
+    private String passwordResetLink;
+
+    private LocalDateTime invitationExpiresAt;
+
+    private LocalDateTime passwordResetExpiresAt;
+
+    private LocalDateTime lastLoginAt;
+
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;

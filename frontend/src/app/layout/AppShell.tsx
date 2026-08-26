@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  Alert,
   AppBar,
   Box,
   Button,
@@ -24,7 +25,9 @@ import {
   DashboardRounded,
   DescriptionRounded,
   FolderRounded,
+  LibraryBooksRounded,
   MenuRounded,
+  PeopleRounded,
   SettingsRounded,
   TaskRounded,
   ViewKanbanRounded,
@@ -51,6 +54,8 @@ export function AppShell() {
     Projects: FolderRounded,
     Tasks: TaskRounded,
     Reports: DescriptionRounded,
+    Users: PeopleRounded,
+    "Knowledge Base": LibraryBooksRounded,
     Settings: SettingsRounded,
   };
 
@@ -63,10 +68,15 @@ export function AppShell() {
     Projects: "projects",
     Tasks: "tasks",
     Reports: "reports",
+    Users: "users",
+    "Knowledge Base": "knowledge-base",
     Settings: "settings",
   };
 
   const hasSectionReadAccess = (label: string): boolean => {
+    if (label === "Settings") {
+      return true;
+    }
     const key = sectionPermissionKey[label];
     if (!key) {
       return true;
@@ -281,6 +291,19 @@ export function AppShell() {
 
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <Toolbar />
+        {user?.passwordChangeRequired ? (
+          <Alert
+            severity="warning"
+            sx={{ mb: 2 }}
+            action={
+              <Button color="inherit" size="small" onClick={() => navigate("/settings")}>
+                Change Password
+              </Button>
+            }
+          >
+            Your account is using a temporary password. Please change it from Settings.
+          </Alert>
+        ) : null}
         <Outlet />
       </Box>
     </Box>

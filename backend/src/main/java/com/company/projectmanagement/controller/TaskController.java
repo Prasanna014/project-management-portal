@@ -10,16 +10,28 @@ import com.company.projectmanagement.service.WorkflowEngineService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Set;
 
 @RestController
 @RequestMapping("/api/tasks")
 @RequiredArgsConstructor
 public class TaskController {
+
+    private static final Set<String> TASK_ADMIN_AUTHORITIES = Set.of(
+            "*",
+            "ALL",
+            "ALL_PERMISSIONS",
+            "ADMIN",
+            "ROLE_ADMIN",
+            "SUPER_ADMIN",
+            "ROLE_SUPER_ADMIN"
+    );
 
     private final TaskService taskService;
     private final WorkflowEngineService workflowEngineService;
@@ -39,6 +51,10 @@ public class TaskController {
     /* ================= CREATE ================= */
     @PostMapping
     public ResponseEntity<TaskDto> createTask(@Valid @RequestBody TaskDto taskDto) {
+        SecurityUserPrincipal principal = getCurrentPrincipal();
+        if (principal != null && taskDto.getCreatedBy() == null) {
+            taskDto.setCreatedBy(principal.userId());
+        }
         return ResponseEntity.ok(taskService.createTask(taskDto));
     }
 
@@ -48,7 +64,10 @@ public class TaskController {
             @PathVariable Long id,
                 @Valid @RequestBody TaskDto taskDto
     ) {
-        return ResponseEntity.ok(taskService.updateTask(id, taskDto));
+        SecurityUserPrincipal principal = getCurrentPrincipal();
+        Long currentUserId = principal != null ? principal.userId() : null;
+        boolean canManageAllTasks = principal != null && hasTaskAdminAccess(principal);
+        return ResponseEntity.ok(taskService.updateTask(id, taskDto, currentUserId, canManageAllTasks));
     }
 
     /* ================= DELETE ================= */
@@ -76,5 +95,24 @@ public class TaskController {
                 : null;
         workflowEngineService.executeTransition(id, request.getTransitionId(), request.getComment(), performedBy);
         return ResponseEntity.noContent().build();
+    }
+
+    private SecurityUserPrincipal getCurrentPrincipal() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof SecurityUserPrincipal principal) {
+            return principal;
+        }
+        return null;
+    }
+
+    private boolean hasTaskAdminAccess(SecurityUserPrincipal principal) {
+        return principal.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(this::normalizeAuthority)
+                .anyMatch(TASK_ADMIN_AUTHORITIES::contains);
+    }
+
+    private String normalizeAuthority(String value) {
+        return value == null ? "" : value.trim().toUpperCase().replaceAll("[\\s\\-./:]+", "_");
     }
 }

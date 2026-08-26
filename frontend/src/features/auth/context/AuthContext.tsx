@@ -8,6 +8,7 @@ export type AuthUser = {
   userId: number;
   email: string;
   authorities: string[];
+  passwordChangeRequired?: boolean;
 };
 
 type AuthContextValue = {
@@ -16,6 +17,7 @@ type AuthContextValue = {
   isAuthenticated: boolean;
   login: (token: string, user: AuthUser) => void;
   logout: () => void;
+  updateUser: (user: AuthUser) => void;
   hasPermission: (permission: string) => boolean;
   hasAnyPermission: (permissions: string[]) => boolean;
 };
@@ -70,6 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem(AUTH_USER_KEY);
         setToken(null);
         setUser(null);
+      },
+      updateUser: (nextUser) => {
+        localStorage.setItem(AUTH_USER_KEY, JSON.stringify(nextUser));
+        setUser(nextUser);
       },
       hasPermission: (permission) => checkAnyPermission(user?.authorities, [permission]),
       hasAnyPermission: (permissions) => checkAnyPermission(user?.authorities, permissions),

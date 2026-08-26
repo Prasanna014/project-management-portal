@@ -2,6 +2,7 @@
 package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.UserDto;
+import com.company.projectmanagement.dto.UserStatusUpdateRequestDto;
 import com.company.projectmanagement.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -55,5 +56,23 @@ public class UserController {
     @GetMapping("/active")
     public ResponseEntity<List<UserDto>> getActiveUsers() {
         return ResponseEntity.ok(service.getActiveUsers());
+    }
+
+    @PostMapping("/{id}/resend-invite")
+    public ResponseEntity<UserDto> resendInvite(@PathVariable Long id) {
+        return ResponseEntity.ok(service.resendInvite(id));
+    }
+
+    @PostMapping("/{id}/admin-reset-password")
+    public ResponseEntity<UserDto> adminResetPassword(@PathVariable Long id) {
+        return ResponseEntity.ok(service.adminResetPassword(id));
+    }
+
+    @PostMapping("/{id}/status")
+    public ResponseEntity<UserDto> updateAccountStatus(
+            @PathVariable Long id,
+            @Valid @RequestBody UserStatusUpdateRequestDto request
+    ) {
+        return ResponseEntity.ok(service.updateAccountStatus(id, request.getAccountStatus()));
     }
 }

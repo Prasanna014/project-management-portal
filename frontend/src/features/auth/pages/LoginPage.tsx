@@ -1,6 +1,6 @@
-import { Alert, Box, Button, Card, CardContent, Stack, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Card, CardContent, Link, Stack, TextField, Typography } from "@mui/material";
 import { useState, type FormEvent } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 import { useAuth } from "@features/auth/context/AuthContext";
 import { loginWithPassword } from "@features/auth/services/authApi";
@@ -28,8 +28,8 @@ export function LoginPage() {
       login(result.token, result.user);
       navigate(nextPath, { replace: true });
     },
-    onError: () => {
-      setFormError("Login failed. Check email and password.");
+    onError: (error) => {
+      setFormError(error instanceof Error ? error.message : "Login failed. Check email and password.");
     },
   });
 
@@ -75,6 +75,14 @@ export function LoginPage() {
               <Button type="submit" variant="contained" disabled={loginMutation.isPending}>
                 {loginMutation.isPending ? "Signing In..." : "Sign In"}
               </Button>
+              <Stack direction="row" justifyContent="space-between" spacing={1}>
+                <Link component={RouterLink} to="/forgot-password" underline="hover" variant="body2">
+                  Forgot password?
+                </Link>
+                <Link component={RouterLink} to="/activate-account" underline="hover" variant="body2">
+                  Activate invited account
+                </Link>
+              </Stack>
             </Stack>
           </Box>
         </CardContent>

@@ -32,6 +32,7 @@ import { buildActionPermissionCandidates, buildReadPermissionCandidates } from "
 import { fetchProjects } from "@modules/projects/services/projectsApi";
 import { useProjectScope } from "@shared/context/ProjectScopeContext";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { canModifyTask } from "@modules/tasks/utils/taskAccess";
 
 type SnackbarState = {
   open: boolean;
@@ -78,11 +79,12 @@ const taskTableHeaders = [
   "Assigned To",
   "Target Date",
   "Updated",
+  "Access",
 ];
 
 export function TasksPage() {
   const navigate = useNavigate();
-  const { hasAnyPermission } = useAuth();
+  const { user, hasAnyPermission } = useAuth();
   const { selectedProjectId, setSelectedProjectId } = useProjectScope();
   const [searchParams, setSearchParams] = useSearchParams();
   const canRead = hasAnyPermission(buildReadPermissionCandidates("tasks"));
@@ -363,11 +365,18 @@ export function TasksPage() {
                     </TableCell>
                     <TableCell>{formatDate(task.targetDate)}</TableCell>
                     <TableCell>{formatDate(task.updatedAt)}</TableCell>
+                    <TableCell>
+                      <Chip
+                        size="small"
+                        color={canModifyTask(task, user) ? "success" : "default"}
+                        label={canModifyTask(task, user) ? "Can Edit" : "View Only"}
+                      />
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredTasks.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={10}>
+                    <TableCell colSpan={12}>
                       <Typography variant="body2" color="text.secondary">
                         No tasks match the selected project/status filters.
                       </Typography>

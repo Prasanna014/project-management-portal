@@ -18,6 +18,8 @@ export const mainNavigation: MainNavItem[] = [
   { label: "Projects", to: "/projects" },
   { label: "Tasks", to: "/tasks" },
   { label: "Reports", to: "/reports" },
+  { label: "Users", to: "/users" },
+  { label: "Knowledge Base", to: "/knowledge-base" },
   { label: "Administration", to: "/administration" },
   { label: "Settings", to: "/settings" },
 ];

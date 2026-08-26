@@ -50,3 +50,6 @@ springdoc:
 jwt:
   secret: ${JWT_SECRET:change-this-secret-key-with-at-least-32-characters}
   expiration-ms: ${JWT_EXPIRATION_MS:3600000}
+
+app:
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}

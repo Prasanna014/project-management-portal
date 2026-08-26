@@ -19,4 +19,5 @@ public class AuthTokenResponseDto {
     private Long userId;
     private String email;
     private List<String> authorities;
+    private Boolean passwordChangeRequired;
 }

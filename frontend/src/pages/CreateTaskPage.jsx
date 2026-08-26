@@ -22,6 +22,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { useAuth } from "../features/auth/context/AuthContext";
+import { buildActionPermissionCandidates } from "../shared/auth/permissions";
 
 import { getAllProjects } from "../services/projectService";
 import { getUsers } from "../services/userServices";
@@ -29,7 +31,9 @@ import { getAllTasks, createTask } from "../services/taskService";
 
 export default function CreateTaskPage() {
   const navigate = useNavigate();
-  const currentUserId = Number(import.meta.env.VITE_DEFAULT_USER_ID || 1);
+  const { user, hasAnyPermission } = useAuth();
+  const currentUserId = user?.userId ?? null;
+  const canCreateTask = hasAnyPermission(buildActionPermissionCandidates("tasks", "create"));
 
   // State
   const [projects, setProjects] = useState([]);
@@ -53,6 +57,14 @@ export default function CreateTaskPage() {
   const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+
+  if (!currentUserId) {
+    return <Alert severity="error">Unable to identify the signed-in user. Please sign in again.</Alert>;
+  }
+
+  if (!canCreateTask) {
+    return <Alert severity="warning">You do not have permission to create tickets.</Alert>;
+  }
 
   // Load projects and users on mount
   useEffect(() => {
