@@ -3,11 +3,11 @@
 ## 1) Correct API URL format
 Use this format for frontend API:
 
-- `http://57.154.241.153:8080/api`
+- `http://135.237.122.175:8080/api`
 
 Do NOT use:
 
-- `http://57.154.241.153:5173:8080/api` (invalid URL)
+- `http://135.237.122.175:5173:8080/api` (invalid URL)
 
 `5173` is frontend port, `8080` is backend port.
 
@@ -20,7 +20,7 @@ This file now includes a commented "Server push profile" block so you can uncomm
 
 Set:
 
-- `VITE_API_BASE_URL=http://57.154.241.153:8080/api`
+- `VITE_API_BASE_URL=http://135.237.122.175:8080/api`
 
 ## 3) Backend file to keep stable in code
 Backend uses env placeholders in:
