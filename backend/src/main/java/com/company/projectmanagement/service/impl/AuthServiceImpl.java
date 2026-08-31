@@ -42,6 +42,7 @@ public class AuthServiceImpl implements AuthService {
     private final AuditLogService auditLogService;
 
     @Override
+    @Transactional
     public AuthTokenResponseDto login(AuthLoginRequestDto request) {
         User userRecord = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BadRequestException("Login failed. Check email and password."));
