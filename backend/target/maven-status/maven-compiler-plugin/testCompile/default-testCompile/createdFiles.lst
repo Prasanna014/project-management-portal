@@ -1,0 +1,3 @@
+com\company\projectmanagement\integration\SecurityIntegrationTest.class
+com\company\projectmanagement\service\TaskServiceTest.class
+com\company\projectmanagement\security\ApiPermissionAuthorizationServiceTest.class
