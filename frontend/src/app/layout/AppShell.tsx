@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   Alert,
   AppBar,
-  Badge,
+  Avatar,
   Box,
   Button,
   Card,
@@ -20,6 +20,8 @@ import {
   ListItemButton,
   ListItemText,
   ListSubheader,
+  Menu,
+  MenuItem,
   Stack,
   TextField,
   Toolbar,
@@ -38,10 +40,12 @@ import {
   LibraryBooksRounded,
   ManageAccountsRounded,
   MenuRounded,
-  NotificationsRounded,
   PeopleRounded,
   SearchRounded,
   SettingsRounded,
+  DarkModeRounded,
+  LightModeRounded,
+  LogoutRounded,
   TaskRounded,
   ViewKanbanRounded,
 } from "@mui/icons-material";
@@ -109,10 +113,11 @@ export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout, hasAnyPermission } = useAuth();
-  const { preferences, addRecentSearch } = usePreferences();
+  const { preferences, updatePreferences, addRecentSearch } = usePreferences();
   const [adminExpanded, setAdminExpanded] = useState(true);
   const [drawerCollapsed, setDrawerCollapsed] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [profileMenuAnchor, setProfileMenuAnchor] = useState<HTMLElement | null>(null);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
 
@@ -132,13 +137,6 @@ export function AppShell() {
     const timeoutId = window.setTimeout(() => setDebouncedSearch(searchValue.trim()), 250);
     return () => window.clearTimeout(timeoutId);
   }, [searchValue]);
-
-  const unreadNotificationsQuery = useQuery({
-    queryKey: ["notifications-unread", user?.userId],
-    queryFn: () => fetchUnreadNotifications(user?.userId ?? 0),
-    enabled: Boolean(user?.userId),
-    refetchInterval: 30000,
-  });
 
   const quickSearchQuery = useQuery({
     queryKey: ["shell-search", debouncedSearch],
@@ -209,7 +207,7 @@ export function AppShell() {
   }, [availableAdminModules]);
 
   const quickResults = useMemo(() => buildQuickResults(quickSearchQuery.data), [quickSearchQuery.data]);
-  const unreadCount = unreadNotificationsQuery.data?.length ?? 0;
+  const profileInitials = (user?.email ?? "U").split("@")[0].slice(0, 2).toUpperCase();
 
   const handleOpenSearchTarget = (target: string, query?: string) => {
     if (query) {
@@ -233,7 +231,7 @@ export function AppShell() {
           <IconButton color="inherit" onClick={() => setDrawerCollapsed((value) => !value)} sx={{ mr: 0.5 }}>
             {drawerCollapsed ? <MenuRounded /> : <ChevronLeft />}
           </IconButton>
-          <Typography variant="h6" sx={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, whiteSpace: "nowrap", display: { xs: "none", lg: "block" } }}>
             SupportFlow Enterprise UI
           </Typography>
           <Button
@@ -241,11 +239,11 @@ export function AppShell() {
             startIcon={<SearchRounded />}
             onClick={() => setSearchOpen(true)}
             sx={{
-              ml: { md: 2 },
+              ml: { sm: 1, lg: 2 },
               flexGrow: 1,
               justifyContent: "flex-start",
-              minWidth: 180,
-              maxWidth: 480,
+              minWidth: 0,
+              maxWidth: 760,
               bgcolor: "rgba(255,255,255,0.12)",
               borderRadius: 999,
               textTransform: "none",
@@ -253,47 +251,59 @@ export function AppShell() {
             }}
           >
             Search tasks, projects, comments
-            <Chip size="small" label="Ctrl+K" sx={{ ml: 1, bgcolor: "rgba(255,255,255,0.16)", color: "#fff" }} />
+            <Chip size="small" label="Ctrl+K" sx={{ ml: "auto", bgcolor: "rgba(255,255,255,0.16)", color: "#fff" }} />
           </Button>
-          <Tooltip title="Notifications">
-            <IconButton color="inherit" onClick={() => navigate("/notifications")}>
-              <Badge badgeContent={unreadCount} color="error">
-                <NotificationsRounded />
-              </Badge>
+          <Tooltip title="Account menu">
+            <IconButton color="inherit" onClick={(event) => setProfileMenuAnchor(event.currentTarget)}>
+              <Avatar sx={{ width: 32, height: 32, bgcolor: "rgba(255,255,255,0.22)", fontSize: "0.75rem", fontWeight: 700 }}>
+                {profileInitials}
+              </Avatar>
             </IconButton>
           </Tooltip>
-          <Chip
-            size="small"
-            label={preferences.themeMode === "dark" ? "Dark" : "Light"}
-            sx={{ bgcolor: "rgba(255,255,255,0.16)", color: "#fff", fontWeight: 700 }}
-          />
-          <Typography variant="body2" sx={{ mr: 1 }}>
-            {user?.email ?? "Unknown user"}
-          </Typography>
-          <Button
-            color="inherit"
-            onClick={() => {
-              logout();
-              navigate("/login", { replace: true });
-            }}
-          >
-            Logout
-          </Button>
         </Toolbar>
       </AppBar>
+
+      <Menu
+        anchorEl={profileMenuAnchor}
+        open={Boolean(profileMenuAnchor)}
+        onClose={() => setProfileMenuAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem disabled sx={{ opacity: "1 !important", minWidth: 220 }}>
+          <Stack spacing={0.25}>
+            <Typography variant="subtitle2">{user?.email ?? "Unknown user"}</Typography>
+            <Typography variant="caption" color="text.secondary">Account</Typography>
+          </Stack>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { setProfileMenuAnchor(null); navigate("/profile"); }}>
+          <ManageAccountsRounded fontSize="small" />
+          <ListItemText sx={{ ml: 1.5 }}>Profile</ListItemText>
+        </MenuItem>
+        <MenuItem onClick={() => updatePreferences({ themeMode: preferences.themeMode === "dark" ? "light" : "dark" })}>
+          {preferences.themeMode === "dark" ? <LightModeRounded fontSize="small" /> : <DarkModeRounded fontSize="small" />}
+          <ListItemText sx={{ ml: 1.5 }}>{preferences.themeMode === "dark" ? "Use light theme" : "Use dark theme"}</ListItemText>
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => { logout(); navigate("/login", { replace: true }); }}>
+          <LogoutRounded fontSize="small" />
+          <ListItemText sx={{ ml: 1.5 }}>Log out</ListItemText>
+        </MenuItem>
+      </Menu>
 
       <Drawer
         variant="permanent"
         sx={{
           width: drawerCollapsed ? drawerWidthCollapsed : drawerWidthExpanded,
           flexShrink: 0,
-          "& .MuiDrawer-paper": {
+          "& .MuiDrawer-paper": (theme) => ({
             width: drawerCollapsed ? drawerWidthCollapsed : drawerWidthExpanded,
             boxSizing: "border-box",
-            background: "linear-gradient(180deg, #F8FAFF 0%, #EEF2FF 100%)",
-            borderRight: "1px solid #DCE3F4",
+            backgroundColor: theme.palette.background.paper,
+            borderRight: `1px solid ${theme.palette.divider}`,
             transition: "width 0.2s ease-in-out",
-          },
+          }),
         }}
       >
         <Toolbar />
@@ -302,7 +312,7 @@ export function AppShell() {
             <ListSubheader
               sx={{
                 bgcolor: "transparent",
-                color: "#6B7280",
+                color: "text.secondary",
                 fontWeight: 700,
                 letterSpacing: "0.08em",
                 textTransform: "uppercase",
@@ -329,9 +339,9 @@ export function AppShell() {
                   justifyContent: drawerCollapsed ? "center" : "flex-start",
                   gap: drawerCollapsed ? 0 : 1.2,
                   "&.Mui-selected": {
-                    bgcolor: "#DDE8FF",
-                    color: "#1E3A8A",
-                    boxShadow: "inset 3px 0 0 #3B82F6",
+                    bgcolor: "action.selected",
+                    color: "primary.main",
+                    boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.primary.main}`,
                   },
                 }}
               >
@@ -341,7 +351,7 @@ export function AppShell() {
                     <Icon
                       fontSize="small"
                       style={{
-                        color: isMainItemSelected(item.to) ? "#1E3A8A" : "#60708F",
+                        color: isMainItemSelected(item.to) ? "primary.main" : "text.secondary",
                       }}
                     />
                   );
@@ -361,15 +371,15 @@ export function AppShell() {
                 minHeight: 44,
                 justifyContent: drawerCollapsed ? "center" : "space-between",
                 "&.Mui-selected": {
-                  bgcolor: "#DDE8FF",
-                  color: "#1E3A8A",
+                  bgcolor: "action.selected",
+                  color: "primary.main",
                 },
               }}
             >
               <AdminPanelSettingsRounded
                 fontSize="small"
                 style={{
-                  color: location.pathname.startsWith("/administration") ? "#1E3A8A" : "#60708F",
+                  color: location.pathname.startsWith("/administration") ? "primary.main" : "text.secondary",
                 }}
               />
               {!drawerCollapsed ? <ListItemText primary="Administration" /> : null}
@@ -386,7 +396,7 @@ export function AppShell() {
                     sx={{
                       pl: 4,
                       bgcolor: "transparent",
-                      color: "#9CA3AF",
+                      color: "text.secondary",
                       fontSize: "0.65rem",
                       fontWeight: 700,
                       letterSpacing: "0.1em",
@@ -408,7 +418,7 @@ export function AppShell() {
                         mb: 0.4,
                         borderRadius: 2,
                         minHeight: 38,
-                        "&.Mui-selected": { bgcolor: "#DDE8FF", color: "#1E3A8A" },
+                        "&.Mui-selected": { bgcolor: "action.selected", color: "primary.main" },
                       }}
                     >
                       <ListItemText primary={navItem.label} primaryTypographyProps={{ fontSize: "0.875rem" }} />
