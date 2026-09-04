@@ -48,6 +48,7 @@ export const administrationNavigation: AdminNavItem[] = [
   { key: "task-statuses",    label: "Task Statuses",    to: "/administration/task-statuses",    available: true,  section: "Task Catalog" },
   { key: "task-priorities",  label: "Task Priorities",  to: "/administration/task-priorities",  available: true,  section: "Task Catalog" },
   { key: "task-categories",  label: "Task Categories",  to: "/administration/task-categories",  available: true,  section: "Task Catalog" },
+  { key: "labels",           label: "Labels",           to: "/administration/labels",           available: true,  section: "Task Catalog" },
 
   // ── Workflows ─────────────────────────────────────────────────────────────────
   { key: "workflows",              label: "Workflows",             to: "/administration/workflows",             available: true, section: "Workflows" },

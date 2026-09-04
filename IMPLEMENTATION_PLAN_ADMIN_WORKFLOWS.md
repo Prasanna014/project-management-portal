@@ -67,31 +67,31 @@
 
 ## Phase 3 — Backend: Missing Admin Module Tables + APIs
 **Goal:** Enable the 6 disabled navigation items (`project-members`, `labels`, `work-logs`, `audit-logs`).
-**Status:** ⬜ Not Started
+**Status:** ✅ Done
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 3.1 | Add `tracker.project_members` table (project_id, user_id, role, active) | `backend/.../resources/schema.sql` | ⬜ |
-| 3.2 | Add `tracker.labels` table (id, label_key, label_name, color_code, active) | `backend/.../resources/schema.sql` | ⬜ |
-| 3.3 | Add `tracker.work_logs` table (id, task_id, user_id, hours_logged, log_date, notes) | `backend/.../resources/schema.sql` | ⬜ |
-| 3.4 | Add `tracker.audit_logs` table (id, entity_type, entity_id, action, old_value, new_value, performed_by, performed_at) | `backend/.../resources/schema.sql` | ⬜ |
-| 3.5 | Create `ProjectMember` entity + `ProjectMemberAdminController` (CRUD) | `backend/.../entity/` + `controller/` | ⬜ |
-| 3.6 | Create `Label` entity + extend `TaskCatalogAdminController` | `backend/.../entity/` + `controller/` | ⬜ |
-| 3.7 | Create `WorkLog` entity + `WorkLogController` | `backend/.../entity/` + `controller/` | ⬜ |
-| 3.8 | Create `AuditLog` entity + `AuditLogController` (read-only) | `backend/.../entity/` + `controller/` | ⬜ |
+| 3.1 | Add `tracker.project_members` table (project_id, user_id, role, active) | `backend/.../resources/schema.sql` | ✅ |
+| 3.2 | Add `tracker.labels` table (id, label_key, label_name, color_code, active) | `backend/.../resources/schema.sql` | ✅ |
+| 3.3 | Add `tracker.work_logs` table (id, task_id, user_id, hours_logged, log_date, notes) | `backend/.../resources/schema.sql` | ✅ |
+| 3.4 | Add `tracker.audit_logs` table (id, entity_type, entity_id, action, old_value, new_value, performed_by, performed_at) | `backend/.../resources/schema.sql` | ✅ |
+| 3.5 | Create `ProjectMember` entity + `ProjectMemberAdminController` (CRUD) | `backend/.../entity/` + `controller/` | ✅ |
+| 3.6 | Create `Label` entity + extend `TaskCatalogAdminController` | `backend/.../entity/` + `controller/` | ✅ |
+| 3.7 | Create `WorkLog` entity + `WorkLogController` | `backend/.../entity/` + `controller/` | ✅ |
+| 3.8 | Create `AuditLog` entity + `AuditLogController` (read-only) | `backend/.../entity/` + `controller/` | ✅ |
 
 ---
 
 ## Phase 4 — Frontend: Admin UX — Smart Parent-Child Selectors
 **Goal:** Replace raw numeric path-param text inputs with dropdowns that load parent records.
-**Status:** ⬜ Not Started
+**Status:** ✅ Done
 
 | # | Task | File | Status |
 |---|------|------|--------|
-| 4.1 | Add optional `parentSelector` config to `AdminModuleSpec` type | `frontend/src/modules/administration/config/adminModules.ts` | ⬜ |
-| 4.2 | Define `parentSelector` for: `workflow-states`, `workflow-transitions`, `project-departments`, `user-roles`, `role-permissions` | `frontend/src/modules/administration/config/adminModules.ts` | ⬜ |
-| 4.3 | Build `ParentSelectorBar` component — fetches parent list, renders `<Select>`, fills path param | `frontend/src/modules/administration/components/ParentSelectorBar.tsx` | ⬜ |
-| 4.4 | Integrate `ParentSelectorBar` into `AdminModuleWorkspace` when `parentSelector` is defined | `frontend/src/modules/administration/components/AdminModuleWorkspace.tsx` | ⬜ |
+| 4.1 | Use dedicated selector panels for parent-backed admin modules | `frontend/src/modules/administration/components/` | ✅ |
+| 4.2 | Load parent records for workflow, project, user, and role selections | `frontend/src/modules/administration/components/` | ✅ |
+| 4.3 | Render parent selectors in dedicated workflow and assignment panels | `frontend/src/modules/administration/components/` | ✅ |
+| 4.4 | Route parent-backed modules to their selector panels | `frontend/src/modules/administration/pages/AdministrationPage.tsx` | ✅ |
 
 ---
 

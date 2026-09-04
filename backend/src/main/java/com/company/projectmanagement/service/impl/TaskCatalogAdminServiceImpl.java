@@ -2,17 +2,21 @@ package com.company.projectmanagement.service.impl;
 
 import com.company.projectmanagement.dto.TaskCategoryRequestDto;
 import com.company.projectmanagement.dto.TaskCategoryResponseDto;
+import com.company.projectmanagement.dto.LabelRequestDto;
+import com.company.projectmanagement.dto.LabelResponseDto;
 import com.company.projectmanagement.dto.TaskPriorityRequestDto;
 import com.company.projectmanagement.dto.TaskPriorityResponseDto;
 import com.company.projectmanagement.dto.TaskStatusRequestDto;
 import com.company.projectmanagement.dto.TaskStatusResponseDto;
 import com.company.projectmanagement.entity.Task;
 import com.company.projectmanagement.entity.TaskCategory;
+import com.company.projectmanagement.entity.Label;
 import com.company.projectmanagement.entity.TaskPriority;
 import com.company.projectmanagement.entity.TaskStatus;
 import com.company.projectmanagement.exception.BadRequestException;
 import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.TaskCategoryRepository;
+import com.company.projectmanagement.repository.LabelRepository;
 import com.company.projectmanagement.repository.TaskPriorityRepository;
 import com.company.projectmanagement.repository.TaskRepository;
 import com.company.projectmanagement.repository.TaskStatusRepository;
@@ -33,6 +37,7 @@ public class TaskCatalogAdminServiceImpl implements TaskCatalogAdminService {
     private final TaskStatusRepository taskStatusRepository;
     private final TaskPriorityRepository taskPriorityRepository;
     private final TaskCategoryRepository taskCategoryRepository;
+    private final LabelRepository labelRepository;
     private final TaskRepository taskRepository;
 
     @Override
@@ -257,6 +262,56 @@ public class TaskCatalogAdminServiceImpl implements TaskCatalogAdminService {
         taskCategoryRepository.delete(entity);
     }
 
+    @Override
+    @Transactional
+    public LabelResponseDto createLabel(LabelRequestDto request) {
+        labelRepository.findByLabelKey(request.getLabelKey())
+                .ifPresent(label -> { throw new BadRequestException("Label key already exists"); });
+        labelRepository.findByLabelName(request.getLabelName())
+                .ifPresent(label -> { throw new BadRequestException("Label name already exists"); });
+        return mapLabelResponse(labelRepository.save(mapLabelEntity(request, null)));
+    }
+
+    @Override
+    @Transactional
+    public LabelResponseDto updateLabel(Long id, LabelRequestDto request) {
+        Label existing = labelRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Label not found: " + id));
+        labelRepository.findByLabelKey(request.getLabelKey())
+                .filter(label -> !label.getId().equals(id))
+                .ifPresent(label -> { throw new BadRequestException("Label key already exists"); });
+        labelRepository.findByLabelName(request.getLabelName())
+                .filter(label -> !label.getId().equals(id))
+                .ifPresent(label -> { throw new BadRequestException("Label name already exists"); });
+
+        existing.setLabelKey(request.getLabelKey());
+        existing.setLabelName(request.getLabelName());
+        existing.setColorCode(request.getColorCode());
+        if (request.getActive() != null) {
+            existing.setActive(request.getActive());
+        }
+        return mapLabelResponse(labelRepository.save(existing));
+    }
+
+    @Override
+    public LabelResponseDto getLabelById(Long id) {
+        return mapLabelResponse(labelRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Label not found: " + id)));
+    }
+
+    @Override
+    public List<LabelResponseDto> getAllLabels() {
+        return labelRepository.findAll().stream().map(this::mapLabelResponse).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void deleteLabel(Long id) {
+        Label entity = labelRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Label not found: " + id));
+        labelRepository.delete(entity);
+    }
+
     private TaskStatus mapStatusEntity(TaskStatusRequestDto request, Long id) {
         return TaskStatus.builder()
                 .id(id)
@@ -327,6 +382,28 @@ public class TaskCatalogAdminServiceImpl implements TaskCatalogAdminService {
                 .categoryKey(entity.getCategoryKey())
                 .categoryName(entity.getCategoryName())
                 .description(entity.getDescription())
+                .active(entity.getActive())
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .build();
+    }
+
+    private Label mapLabelEntity(LabelRequestDto request, Long id) {
+        return Label.builder()
+                .id(id)
+                .labelKey(request.getLabelKey())
+                .labelName(request.getLabelName())
+                .colorCode(request.getColorCode())
+                .active(request.getActive())
+                .build();
+    }
+
+    private LabelResponseDto mapLabelResponse(Label entity) {
+        return LabelResponseDto.builder()
+                .id(entity.getId())
+                .labelKey(entity.getLabelKey())
+                .labelName(entity.getLabelName())
+                .colorCode(entity.getColorCode())
                 .active(entity.getActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

@@ -2,6 +2,8 @@ package com.company.projectmanagement.service;
 
 import com.company.projectmanagement.dto.TaskCategoryRequestDto;
 import com.company.projectmanagement.dto.TaskCategoryResponseDto;
+import com.company.projectmanagement.dto.LabelRequestDto;
+import com.company.projectmanagement.dto.LabelResponseDto;
 import com.company.projectmanagement.dto.TaskPriorityRequestDto;
 import com.company.projectmanagement.dto.TaskPriorityResponseDto;
 import com.company.projectmanagement.dto.TaskStatusRequestDto;
@@ -46,4 +48,14 @@ public interface TaskCatalogAdminService {
     List<TaskCategoryResponseDto> getActiveCategories();
 
     void deleteCategory(Long id);
+
+    LabelResponseDto createLabel(LabelRequestDto request);
+
+    LabelResponseDto updateLabel(Long id, LabelRequestDto request);
+
+    LabelResponseDto getLabelById(Long id);
+
+    List<LabelResponseDto> getAllLabels();
+
+    void deleteLabel(Long id);
 }

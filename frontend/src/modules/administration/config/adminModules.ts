@@ -313,6 +313,31 @@ export const adminModuleSpecs: Record<string, AdminModuleSpec> = {
     ],
     capabilities: fullCapabilities,
   },
+  labels: {
+    key: "labels",
+    title: "Labels",
+    description: "Manage reusable labels for classifying project work.",
+    backendEndpoint: "/admin/task-catalog/labels",
+    listEndpoint: "/admin/task-catalog/labels",
+    createEndpoint: "/admin/task-catalog/labels",
+    updateEndpoint: "/admin/task-catalog/labels/:id",
+    deleteEndpoint: "/admin/task-catalog/labels/:id",
+    listResponseMode: "paged",
+    columns: [
+      { label: "ID", accessor: "id" },
+      { label: "Name", accessor: "labelName" },
+      { label: "Key", accessor: "labelKey" },
+      { label: "Color", accessor: "colorCode" },
+      { label: "Status", accessor: "active" },
+    ],
+    fields: [
+      { name: "labelKey", label: "Label Key", required: true, type: "text" },
+      { name: "labelName", label: "Label Name", required: true, type: "text" },
+      { name: "colorCode", label: "Color Code (hex)", required: false, type: "color" },
+      { name: "active", label: "Active", required: true, type: "boolean" },
+    ],
+    capabilities: fullCapabilities,
+  },
   // Workflows
   workflows: {
     key: "workflows",

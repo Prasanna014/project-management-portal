@@ -249,6 +249,18 @@ CREATE TABLE IF NOT EXISTS tracker.workflow_transition_roles (
     CONSTRAINT workflow_transition_roles_role_fk FOREIGN KEY (role_id) REFERENCES tracker.roles(id)
 );
 
+CREATE TABLE IF NOT EXISTS tracker.labels (
+    id BIGSERIAL PRIMARY KEY,
+    label_key VARCHAR(100) NOT NULL,
+    label_name VARCHAR(255) NOT NULL,
+    color_code VARCHAR(20),
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP,
+    CONSTRAINT labels_key_unique UNIQUE (label_key),
+    CONSTRAINT labels_name_unique UNIQUE (label_name)
+);
+
 -- Configurable API permission rules (database-driven authorization)
 CREATE TABLE IF NOT EXISTS tracker.api_permission_rules (
     id BIGSERIAL PRIMARY KEY,
@@ -575,6 +587,7 @@ CREATE INDEX IF NOT EXISTS idx_workflow_transitions_workflow_id ON tracker.workf
 CREATE INDEX IF NOT EXISTS idx_workflow_transitions_from_state_id ON tracker.workflow_transitions(from_state_id);
 CREATE INDEX IF NOT EXISTS idx_workflow_transitions_to_state_id ON tracker.workflow_transitions(to_state_id);
 CREATE INDEX IF NOT EXISTS idx_project_departments_department_id ON tracker.project_departments(department_id);
+CREATE INDEX IF NOT EXISTS idx_labels_active ON tracker.labels(active);
 CREATE INDEX IF NOT EXISTS idx_api_permission_rules_permission_id ON tracker.api_permission_rules(permission_id);
 CREATE INDEX IF NOT EXISTS idx_api_permission_rules_active_method ON tracker.api_permission_rules(active, http_method);
 

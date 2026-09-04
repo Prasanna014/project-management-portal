@@ -2,6 +2,8 @@ package com.company.projectmanagement.controller;
 
 import com.company.projectmanagement.dto.TaskCategoryRequestDto;
 import com.company.projectmanagement.dto.TaskCategoryResponseDto;
+import com.company.projectmanagement.dto.LabelRequestDto;
+import com.company.projectmanagement.dto.LabelResponseDto;
 import com.company.projectmanagement.dto.TaskPriorityRequestDto;
 import com.company.projectmanagement.dto.TaskPriorityResponseDto;
 import com.company.projectmanagement.dto.TaskStatusRequestDto;
@@ -167,6 +169,45 @@ public class TaskCatalogAdminController {
     @DeleteMapping("/categories/{id}")
     public ResponseEntity<Void> deleteCategory(@PathVariable Long id) {
         service.deleteCategory(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/labels")
+    public ResponseEntity<Map<String, Object>> getLabels(
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
+            @RequestParam(defaultValue = "id") String sortBy,
+            @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Boolean active
+    ) {
+        List<LabelResponseDto> all = service.getAllLabels();
+        Map<String, Object> body = ApiListQueryHelper.filterSortPaginate(
+                all, keyword, active, sortBy, sortDir, page, size,
+                label -> label.getLabelKey() + " " + label.getLabelName(),
+                LabelResponseDto::getActive
+        );
+        return ResponseEntity.ok(body);
+    }
+
+    @GetMapping("/labels/{id}")
+    public ResponseEntity<LabelResponseDto> getLabelById(@PathVariable Long id) {
+        return ResponseEntity.ok(service.getLabelById(id));
+    }
+
+    @PostMapping("/labels")
+    public ResponseEntity<LabelResponseDto> createLabel(@Valid @RequestBody LabelRequestDto request) {
+        return ResponseEntity.ok(service.createLabel(request));
+    }
+
+    @PutMapping("/labels/{id}")
+    public ResponseEntity<LabelResponseDto> updateLabel(@PathVariable Long id, @Valid @RequestBody LabelRequestDto request) {
+        return ResponseEntity.ok(service.updateLabel(id, request));
+    }
+
+    @DeleteMapping("/labels/{id}")
+    public ResponseEntity<Void> deleteLabel(@PathVariable Long id) {
+        service.deleteLabel(id);
         return ResponseEntity.noContent().build();
     }
 }
