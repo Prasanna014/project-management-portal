@@ -1,0 +1,341 @@
+SupportFlow Enterprise Feature Implementation Policy
+
+IMPORTANT INSTRUCTION
+
+Before implementing ANY new feature, perform a complete analysis of the existing codebase.
+
+For every requested feature:
+
+1. First inspect the current implementation.
+2. Identify whether the feature already exists fully, partially, or not at all.
+3. DO NOT immediately generate code changes.
+4. Produce an assessment report first.
+5. Explain:
+   - Existing implementation
+   - Existing entities
+   - Existing APIs
+   - Existing UI pages
+   - Existing database tables
+   - Existing workflows
+   - Current limitations
+6. Suggest improvements.
+7. Wait for engineering approval before implementing any changes.
+8. If the feature already exists and is working correctly, DO NOT duplicate it.
+9. If the feature partially exists, explain exactly what should be extended.
+10. Only implement after providing analysis and obtaining confirmation.
+
+==========================================================
+PHASE-2 ENTERPRISE FEATURE REVIEW AND IMPLEMENTATION
+==========================================================
+
+Review the following features one by one.
+
+----------------------------------------------------------
+1. ADVANCED WORKFLOW BUILDER
+----------------------------------------------------------
+
+Analyze whether a workflow module already exists.
+
+Check:
+
+- Workflow entities
+- Workflow tables
+- Workflow APIs
+- Approval integration
+- Status management
+
+If already present:
+
+Explain:
+
+- Current workflow capabilities
+- Workflow creation mechanism
+- Workflow assignment logic
+- Current limitations
+
+Possible enhancements:
+
+- Drag and Drop Workflow Builder
+- Custom Workflow Creation
+- Workflow Templates
+- Status Reordering
+- Status Renaming
+- Conditional Transitions
+
+Role Ownership:
+
+Company Admin:
+- Create Workflow
+- Edit Workflow
+- Delete Workflow
+- Assign Workflow to Projects
+
+Project Admin:
+- Select Existing Workflow
+- Configure Project Workflow
+
+Users:
+- Follow Assigned Workflow
+
+Do not generate code until analysis is approved.
+
+----------------------------------------------------------
+2. SLA ENGINE
+----------------------------------------------------------
+
+Analyze if SLA functionality already exists.
+
+Review:
+
+- Ticket priorities
+- Escalation process
+- Ticket timestamps
+- Existing notifications
+
+If partially implemented:
+
+Explain:
+
+Current State
+Missing Gaps
+Recommended Design
+
+Potential Features:
+
+- SLA Policies
+- Escalation Rules
+- Breach Detection
+- SLA Alerts
+- SLA Dashboard
+- SLA Reports
+
+Do not implement until approved.
+
+----------------------------------------------------------
+3. KNOWLEDGE BASE
+----------------------------------------------------------
+
+Analyze if any article/documentation capability exists.
+
+Check:
+
+- Existing modules
+- Existing tables
+- Existing UI
+
+Possible additions:
+
+- Categories
+- Articles
+- Version History
+- Search
+- FAQ
+- AI Search
+
+Provide detailed analysis first.
+
+----------------------------------------------------------
+4. SERVICE CATALOG
+----------------------------------------------------------
+
+Analyze whether ticket templates or request categories already exist.
+
+Examples:
+
+- Request Laptop
+- Request VPN
+- Request Database Access
+- Request Azure Subscription
+
+Explain:
+
+Current implementation
+
+Can current system support catalog functionality?
+
+What changes are required?
+
+Do not implement without approval.
+
+----------------------------------------------------------
+5. ASSET MANAGEMENT
+----------------------------------------------------------
+
+Inspect existing tables.
+
+Check for:
+
+- Asset references
+- Device tracking
+- Assignment tracking
+
+Potential Features:
+
+Assets:
+
+- Laptop
+- Mobile
+- Desktop
+- Servers
+- Software Licenses
+
+Reports:
+
+- Inventory
+- Assignment History
+- Warranty Tracking
+
+Produce design review first.
+
+----------------------------------------------------------
+6. DEVOPS INTEGRATION
+----------------------------------------------------------
+
+Analyze whether integrations exist.
+
+Review:
+
+- Webhook support
+- Notification engine
+- External integrations
+
+Potential Integrations:
+
+- Azure DevOps
+- GitHub
+- Jenkins
+- GitLab
+
+Expected Scenarios:
+
+Build Failure
+↓
+Ticket Creation
+
+Deployment Failure
+↓
+Incident Creation
+
+Provide feasibility report first.
+
+----------------------------------------------------------
+7. AI COPILOT
+----------------------------------------------------------
+
+Analyze whether AI modules already exist.
+
+Review:
+
+- OpenAI Integration
+- Azure OpenAI
+- Chat Services
+- RCA Services
+
+Existing Capabilities:
+
+- Ticket Analysis
+- Root Cause Analysis
+- Ticket Summaries
+
+Identify reuse opportunities.
+
+Potential Enhancements:
+
+- AI Ticket Summary
+- AI RCA
+- AI Assignment Suggestions
+- AI Resolution Suggestions
+- AI Ticket Categorization
+- AI Priority Prediction
+- AI Project Summary
+
+Do not duplicate existing services.
+
+----------------------------------------------------------
+8. EXECUTIVE DASHBOARD
+----------------------------------------------------------
+
+Review current dashboards.
+
+Analyze:
+
+- Existing metrics
+- Existing reports
+
+Potential Metrics:
+
+- Company Health
+- Project Health
+- SLA Compliance
+- Open Critical Tickets
+- Ticket Trends
+- Team Performance
+
+Generate dashboard recommendation document first.
+
+----------------------------------------------------------
+9. PROJECT HEALTH SCORE
+----------------------------------------------------------
+
+Analyze available project metrics.
+
+Potential Inputs:
+
+- Open Tickets
+- Critical Tickets
+- SLA Breaches
+- Resolution Time
+- Team Productivity
+
+Output:
+
+Project Health Score
+
+0-100
+
+Provide scoring model proposal before implementation.
+
+----------------------------------------------------------
+10. ENTERPRISE READINESS VALIDATION
+----------------------------------------------------------
+
+Create a gap analysis report.
+
+Classify:
+
+COMPLETED
+
+PARTIALLY IMPLEMENTED
+
+NOT IMPLEMENTED
+
+For each item explain:
+
+- What already exists
+- What should be improved
+- Estimated implementation complexity
+- Recommended priority
+
+==========================================================
+EXPECTED OUTPUT FORMAT
+==========================================================
+
+For each feature provide:
+
+1. Existing Assessment
+2. Current Architecture
+3. Existing Database Objects
+4. Existing APIs
+5. Existing UI Components
+6. Gaps Found
+7. Suggested Improvements
+8. Risk Analysis
+9. Recommendation
+
+Only after completing the assessment report and receiving engineering approval should implementation begin.
+
+Never generate duplicate functionality if an existing implementation can be enhanced.
+
+Objective:
+
+Evolve SupportFlow into an Enterprise ITSM + AI Operations Platform while preserving existing functionality, avoiding duplicate development, and maximizing reuse of current modules.

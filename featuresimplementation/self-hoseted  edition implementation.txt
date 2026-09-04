@@ -1,0 +1,107 @@
+SupportFlow Enterprise Self-Hosted Edition
+
+Objective:
+Implement a self-hosted enterprise deployment model similar to Jira Data Center where SupportFlow is installed inside the customer's infrastructure.
+
+Architecture:
+
+Customer Infrastructure
+    ↓
+SupportFlow Application
+    ↓
+Customer Database
+
+Example:
+
+Wipro Data Center
+    ↓
+SupportFlow Server
+    ↓
+Wipro PostgreSQL Database
+
+Infosys Data Center
+    ↓
+SupportFlow Server
+    ↓
+Infosys PostgreSQL Database
+
+Requirements:
+
+1. Support Self-Hosted Deployment
+   - Spring Boot Application
+   - PostgreSQL Database
+   - Nginx Reverse Proxy
+   - Docker Support
+   - Docker Compose Support
+
+2. Tenant Independence
+   - Each customer owns:
+       - Server
+       - Database
+       - Storage
+       - Backups
+       - Logs
+
+3. Licensing Module
+   - Add license_key table
+   - Add license validation
+   - Add license status:
+
+      ACTIVE
+      EXPIRED
+      SUSPENDED
+
+4. License Validation Flow
+
+   During login:
+
+      Validate License
+      ↓
+      ACTIVE = Login Allowed
+      EXPIRED = Block Login
+      SUSPENDED = Block Login
+
+5. License Expiry Screen
+
+   Display:
+
+   "Your SupportFlow subscription has expired.
+   Please contact SupportFlow Licensing Team."
+
+6. Offline Enterprise Support
+
+   Add ability to:
+
+   - Upload License File
+   - Renew License
+   - Update License
+
+7. Admin Features
+
+   Customer Admin should control:
+
+   - Projects
+   - Users
+   - Roles
+   - SMTP
+   - Workflows
+   - Reports
+
+8. Produce
+
+   - Database Design
+   - Spring Entities
+   - APIs
+   - License Service
+   - Scheduler for Validation
+   - Docker Deployment Files
+   - Installation Guide
+   - Upgrade Guide
+
+Technology:
+Spring Boot
+PostgreSQL
+JWT
+Docker
+Nginx
+Redis (optional)
