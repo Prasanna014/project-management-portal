@@ -9,6 +9,7 @@ export type ProjectDto = {
   id: number;
   projectCode: string;
   projectName: string;
+  projectSlug?: string;
   description?: string;
   active: boolean;
   workflowId?: number;
@@ -20,6 +21,7 @@ export type ProjectDto = {
 export type CreateProjectRequest = {
   projectCode: string;
   projectName: string;
+  projectSlug?: string;
   description?: string;
   active: boolean;
   workflowId?: number;

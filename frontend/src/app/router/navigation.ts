@@ -13,6 +13,7 @@ export type AdminNavItem = {
 };
 
 export const mainNavigation: MainNavItem[] = [
+  { label: "Platform", to: "/platform" },
   { label: "Dashboard", to: "/" },
   { label: "Workspace", to: "/workspace" },
   { label: "Projects", to: "/projects" },

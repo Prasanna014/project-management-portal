@@ -22,6 +22,9 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "company_id")
+    private Long companyId;
+
     @Column(name = "task_no", nullable = false, unique = true)
     @NotBlank
     @Size(max = 255)

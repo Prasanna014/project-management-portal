@@ -24,6 +24,12 @@ public class Project {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "company_id")
+    private Long companyId;
+
+    @Column(name = "project_slug", length = 150)
+    private String projectSlug;
+
     @Column(name = "project_code", nullable = false, unique = true)
     @NotBlank
     @Size(max = 255)

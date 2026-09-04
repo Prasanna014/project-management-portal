@@ -8,7 +8,9 @@ import com.company.projectmanagement.entity.WorkflowDefinition;
 import com.company.projectmanagement.repository.DepartmentRepository;
 import com.company.projectmanagement.repository.ProjectDepartmentRepository;
 import com.company.projectmanagement.repository.ProjectRepository;
+import com.company.projectmanagement.repository.ProjectMemberRepository;
 import com.company.projectmanagement.repository.WorkflowDefinitionRepository;
+import com.company.projectmanagement.security.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -25,10 +27,16 @@ public class ProjectService {
     private final ProjectDepartmentRepository projectDepartmentRepository;
     private final DepartmentRepository departmentRepository;
     private final WorkflowDefinitionRepository workflowDefinitionRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final TenantAccessService tenantAccessService;
 
     /* ================= GET ALL ================= */
     public List<ProjectDto> getAllProjects() {
-        return repository.findAll()
+        List<Project> projects = tenantAccessService.isPlatformAdmin()
+            ? repository.findAll()
+            : repository.findByCompanyId(tenantAccessService.currentCompanyIdOrThrow());
+        return projects.stream()
+            .filter(project -> canAccessProject(project.getId()))
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -36,8 +44,7 @@ public class ProjectService {
 
     /* ================= GET BY ID ================= */
     public ProjectDto getProjectById(Long id) {
-        Project project = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found: " + id));
+        Project project = findProject(id);
         return mapToDto(project);
     }
 
@@ -54,6 +61,9 @@ public class ProjectService {
                 .ifPresent(p -> { throw new RuntimeException("Project name already exists"); });
 
         Project entity = mapToEntity(dto);
+        if (!tenantAccessService.isPlatformAdmin()) {
+            entity.setCompanyId(tenantAccessService.currentCompanyIdOrThrow());
+        }
         Project saved = repository.save(entity);
 
         return mapToDto(saved);
@@ -62,8 +72,7 @@ public class ProjectService {
     /* ================= UPDATE ================= */
     public ProjectDto updateProject(Long id, ProjectDto dto) {
 
-        Project existing = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found: " + id));
+        Project existing = findProject(id);
 
         existing.setProjectCode(dto.getProjectCode());
         existing.setProjectName(dto.getProjectName());
@@ -77,8 +86,7 @@ public class ProjectService {
 
     /* ================= DELETE ================= */
     public void deleteProject(Long id) {
-        Project project = repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Project not found: " + id));
+        Project project = findProject(id);
 
         repository.delete(project);
     }
@@ -96,6 +104,8 @@ public class ProjectService {
 
         return ProjectDto.builder()
                 .id(p.getId())
+                .companyId(p.getCompanyId())
+                .projectSlug(p.getProjectSlug())
                 .projectCode(p.getProjectCode())
                 .projectName(p.getProjectName())
                 .description(p.getDescription())
@@ -129,11 +139,37 @@ public class ProjectService {
 
     private Project mapToEntity(ProjectDto dto) {
         return Project.builder()
+            .companyId(dto.getCompanyId())
+                .projectSlug(normalizeSlug(dto.getProjectSlug(), dto.getProjectCode()))
                 .projectCode(dto.getProjectCode())
                 .projectName(dto.getProjectName())
                 .description(dto.getDescription())
                 .active(dto.getActive())
                 .workflowId(dto.getWorkflowId())
                 .build();
+    }
+
+    private Project findProject(Long id) {
+        if (tenantAccessService.isPlatformAdmin()) {
+            return repository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Project not found: " + id));
+        }
+        Project project = repository.findByIdAndCompanyId(id, tenantAccessService.currentCompanyIdOrThrow())
+                .orElseThrow(() -> new RuntimeException("Project not found: " + id));
+        if (!canAccessProject(project.getId())) {
+            throw new RuntimeException("Project not found: " + id);
+        }
+        return project;
+    }
+
+    private boolean canAccessProject(Long projectId) {
+        return !tenantAccessService.hasRole("PROJECT_ADMIN")
+                || projectMemberRepository.existsByProjectIdAndUserIdAndActiveTrue(projectId, tenantAccessService.currentUserIdOrThrow());
+    }
+
+    private String normalizeSlug(String requestedSlug, String fallback) {
+        String source = requestedSlug == null || requestedSlug.isBlank() ? fallback : requestedSlug;
+        return source.trim().toLowerCase().replaceAll("[^a-z0-9]+", "-")
+                .replaceAll("(^-|-$)", "");
     }
 }

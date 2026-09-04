@@ -15,6 +15,10 @@ public class ProjectDto {
 
     private Long id;
 
+    private Long companyId;
+
+    private String projectSlug;
+
     @NotBlank(message = "Project code is required")
     private String projectCode;
 

@@ -14,6 +14,13 @@ httpClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const [companySlug, projectSlug] = window.location.pathname.split("/").filter(Boolean);
+  if (companySlug && companySlug !== "platform") {
+    config.headers["X-Company-Slug"] = companySlug;
+    if (projectSlug) {
+      config.headers["X-Project-Slug"] = projectSlug;
+    }
+  }
   return config;
 });
 

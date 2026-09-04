@@ -15,6 +15,8 @@ public class UserDto {
 
     private Long id;
 
+    private Long companyId;
+
     @NotBlank(message = "Employee id is required")
     private String employeeId;
 

@@ -26,6 +26,13 @@ public class ApiPermissionAuthorizationService {
             return;
         }
 
+        boolean globalAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(authority -> "ROLE_GLOBAL_ADMIN".equalsIgnoreCase(authority));
+        if (globalAdmin) {
+            return;
+        }
+
         List<ApiPermissionRule> activeRules = apiPermissionRuleRepository
                 .findActiveRulesByHttpMethodWithPermission(method);
 

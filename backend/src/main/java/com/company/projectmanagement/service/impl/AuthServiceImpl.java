@@ -16,6 +16,7 @@ import com.company.projectmanagement.security.JwtTokenProvider;
 import com.company.projectmanagement.security.SecurityUserPrincipal;
 import com.company.projectmanagement.service.AuthService;
 import com.company.projectmanagement.service.UserService;
+import com.company.projectmanagement.service.TenantSubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -40,6 +41,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final UserService userService;
     private final AuditLogService auditLogService;
+    private final TenantSubscriptionService tenantSubscriptionService;
 
     @Override
     @Transactional
@@ -138,6 +140,9 @@ public class AuthServiceImpl implements AuthService {
         }
         if (!Boolean.TRUE.equals(user.getActive())) {
             throw new BadRequestException("Your account is inactive. Contact an administrator.");
+        }
+        if (!"GLOBAL_ADMIN".equalsIgnoreCase(user.getRole())) {
+            tenantSubscriptionService.ensureLoginAllowed(user.getCompanyId());
         }
     }
 }

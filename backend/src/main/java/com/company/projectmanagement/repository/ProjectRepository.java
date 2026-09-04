@@ -13,6 +13,12 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
 
     Optional<Project> findByProjectCode(String projectCode);
 
+    Optional<Project> findByIdAndCompanyId(Long id, Long companyId);
+
+    Optional<Project> findByCompanyIdAndProjectSlug(Long companyId, String projectSlug);
+
+    List<Project> findByCompanyId(Long companyId);
+
     List<Project> findByProjectNameContainingIgnoreCase(String projectName);
 
     List<Project> findByActive(Boolean active);

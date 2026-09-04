@@ -23,6 +23,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtTokenProvider tokenProvider;
     private final DatabaseUserDetailsService userDetailsService;
     private final ApiPermissionAuthorizationService authorizationService;
+    private final TenantUrlValidationFilter tenantUrlValidationFilter;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -51,7 +52,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (authentication != null) {
             authorizationService.enforce(request.getMethod(), request.getServletPath(), authentication);
         }
-
-        filterChain.doFilter(request, response);
+        tenantUrlValidationFilter.doFilter(request, response, filterChain);
     }
 }

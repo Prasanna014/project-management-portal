@@ -13,8 +13,8 @@ const FULL_ACCESS_TOKENS = new Set([
   "*",
   "ALL",
   "ALL_PERMISSIONS",
-  "SUPER_ADMIN",
-  "ROLE_SUPER_ADMIN",
+  "GLOBAL_ADMIN",
+  "ROLE_GLOBAL_ADMIN",
 ]);
 
 const ACTION_ALIASES: Record<PermissionAction, string[]> = {
@@ -29,8 +29,24 @@ const ACTION_ALIASES: Record<PermissionAction, string[]> = {
 const ROLE_DEFAULT_ACCESS: Record<string, RoleDefaultAccess | "*"> = {
   ADMIN: "*",
   ROLE_ADMIN: "*",
-  SUPER_ADMIN: "*",
-  ROLE_SUPER_ADMIN: "*",
+  GLOBAL_ADMIN: "*",
+  ROLE_GLOBAL_ADMIN: "*",
+  COMPANY_ADMIN: {
+    read: ["DASHBOARD", "WORKSPACE", "PROJECTS", "TASKS", "SEARCH", "NOTIFICATIONS", "CALENDAR", "REPORTS", "USERS", "KNOWLEDGE_BASE", "SETTINGS"],
+    create: ["PROJECTS", "TASKS", "USERS", "KNOWLEDGE_BASE"],
+    update: ["PROJECTS", "TASKS", "USERS", "KNOWLEDGE_BASE"],
+    delete: ["PROJECTS"],
+    assign: ["TASKS", "PROJECTS"],
+    export: ["TASKS", "REPORTS"],
+  },
+  ROLE_COMPANY_ADMIN: "*",
+  PROJECT_ADMIN: {
+    read: ["DASHBOARD", "WORKSPACE", "PROJECTS", "TASKS", "SEARCH", "NOTIFICATIONS", "CALENDAR", "REPORTS", "KNOWLEDGE_BASE"],
+    create: ["TASKS", "KNOWLEDGE_BASE"],
+    update: ["TASKS", "KNOWLEDGE_BASE"],
+    assign: ["TASKS"],
+    export: ["TASKS", "REPORTS"],
+  },
   PMO_MANAGER: {
     read: ["DASHBOARD", "WORKSPACE", "PROJECTS", "TASKS", "SEARCH", "NOTIFICATIONS", "CALENDAR", "REPORTS", "USERS", "KNOWLEDGE_BASE", "SETTINGS"],
     create: ["PROJECTS", "TASKS", "KNOWLEDGE_BASE"],

@@ -65,6 +65,7 @@ public class DatabaseUserDetailsService implements UserDetailsService {
 
         return new SecurityUserPrincipal(
                 user.getId(),
+            user.getCompanyId(),
                 user.getEmail(),
                 user.getPasswordHash() == null ? "" : user.getPasswordHash(),
                 authorities,

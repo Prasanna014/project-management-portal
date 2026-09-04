@@ -1,6 +1,63 @@
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS tracker;
 
+CREATE TABLE IF NOT EXISTS tracker.companies (
+    id BIGSERIAL PRIMARY KEY,
+    company_code VARCHAR(100) NOT NULL UNIQUE,
+    company_name VARCHAR(255) NOT NULL UNIQUE,
+    company_slug VARCHAR(100) NOT NULL UNIQUE,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tracker.plans (
+    id BIGSERIAL PRIMARY KEY,
+    plan_code VARCHAR(100) NOT NULL UNIQUE,
+    plan_name VARCHAR(255) NOT NULL,
+    max_users INTEGER NOT NULL,
+    max_projects INTEGER NOT NULL,
+    storage_limit_mb BIGINT NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tracker.subscriptions (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES tracker.companies(id),
+    plan_id BIGINT NOT NULL REFERENCES tracker.plans(id),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tracker.billing (
+    id BIGSERIAL PRIMARY KEY,
+    company_id BIGINT NOT NULL REFERENCES tracker.companies(id),
+    subscription_id BIGINT REFERENCES tracker.subscriptions(id),
+    amount NUMERIC(12, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING',
+    payment_date TIMESTAMP,
+    due_date DATE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tracker.tenant_status (
+    company_id BIGINT PRIMARY KEY REFERENCES tracker.companies(id),
+    status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE tracker.companies ADD COLUMN IF NOT EXISTS company_slug VARCHAR(100);
+UPDATE tracker.companies
+SET company_slug = lower(regexp_replace(company_code, '[^a-zA-Z0-9]+', '-', 'g'))
+WHERE company_slug IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_companies_company_slug ON tracker.companies(company_slug);
+
 -- Existing core tables
 CREATE TABLE IF NOT EXISTS tracker.users (
     id BIGSERIAL PRIMARY KEY,
@@ -13,6 +70,14 @@ CREATE TABLE IF NOT EXISTS tracker.users (
     updated_at TIMESTAMP,
     CONSTRAINT users_email_unique UNIQUE (email),
     CONSTRAINT users_employee_id_unique UNIQUE (employee_id)
+);
+
+CREATE TABLE IF NOT EXISTS tracker.company_admins (
+    company_id BIGINT NOT NULL REFERENCES tracker.companies(id),
+    user_id BIGINT NOT NULL REFERENCES tracker.users(id),
+    active BOOLEAN NOT NULL DEFAULT true,
+    assigned_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (company_id, user_id)
 );
 
 CREATE TABLE IF NOT EXISTS tracker.projects (
@@ -101,6 +166,45 @@ CREATE TABLE IF NOT EXISTS tracker.departments (
     CONSTRAINT departments_name_unique UNIQUE (department_name)
 );
 
+-- Existing installations retain all data under this initial tenant.
+INSERT INTO tracker.companies (company_code, company_name, company_slug)
+VALUES ('DEFAULT', 'Default Company', 'default')
+ON CONFLICT (company_code) DO NOTHING;
+
+INSERT INTO tracker.plans (plan_code, plan_name, max_users, max_projects, storage_limit_mb)
+VALUES ('STANDARD', 'Standard', 100, 25, 10240)
+ON CONFLICT (plan_code) DO NOTHING;
+
+INSERT INTO tracker.tenant_status (company_id, status)
+SELECT id, 'ACTIVE' FROM tracker.companies
+ON CONFLICT (company_id) DO NOTHING;
+
+INSERT INTO tracker.subscriptions (company_id, plan_id, start_date, end_date, status)
+SELECT c.id, p.id, CURRENT_DATE, CURRENT_DATE + INTERVAL '1 year', 'ACTIVE'
+FROM tracker.companies c
+JOIN tracker.plans p ON p.plan_code = 'STANDARD'
+WHERE NOT EXISTS (SELECT 1 FROM tracker.subscriptions s WHERE s.company_id = c.id);
+
+ALTER TABLE tracker.users ADD COLUMN IF NOT EXISTS company_id BIGINT;
+ALTER TABLE tracker.projects ADD COLUMN IF NOT EXISTS company_id BIGINT;
+ALTER TABLE tracker.projects ADD COLUMN IF NOT EXISTS project_slug VARCHAR(150);
+ALTER TABLE tracker.tasks ADD COLUMN IF NOT EXISTS company_id BIGINT;
+ALTER TABLE tracker.departments ADD COLUMN IF NOT EXISTS company_id BIGINT;
+
+UPDATE tracker.users SET company_id = (SELECT id FROM tracker.companies WHERE company_code = 'DEFAULT') WHERE company_id IS NULL;
+UPDATE tracker.projects SET company_id = (SELECT id FROM tracker.companies WHERE company_code = 'DEFAULT') WHERE company_id IS NULL;
+UPDATE tracker.projects
+SET project_slug = lower(regexp_replace(project_code, '[^a-zA-Z0-9]+', '-', 'g'))
+WHERE project_slug IS NULL;
+UPDATE tracker.tasks task SET company_id = project.company_id FROM tracker.projects project WHERE task.project_id = project.id AND task.company_id IS NULL;
+UPDATE tracker.departments SET company_id = (SELECT id FROM tracker.companies WHERE company_code = 'DEFAULT') WHERE company_id IS NULL;
+
+CREATE INDEX IF NOT EXISTS idx_users_company_id ON tracker.users(company_id);
+CREATE INDEX IF NOT EXISTS idx_projects_company_id ON tracker.projects(company_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_projects_company_slug ON tracker.projects(company_id, project_slug);
+CREATE INDEX IF NOT EXISTS idx_tasks_company_id ON tracker.tasks(company_id);
+CREATE INDEX IF NOT EXISTS idx_departments_company_id ON tracker.departments(company_id);
+
 -- Configurable RBAC module
 CREATE TABLE IF NOT EXISTS tracker.roles (
     id BIGSERIAL PRIMARY KEY,
@@ -114,6 +218,14 @@ CREATE TABLE IF NOT EXISTS tracker.roles (
     CONSTRAINT roles_key_unique UNIQUE (role_key),
     CONSTRAINT roles_name_unique UNIQUE (role_name)
 );
+
+INSERT INTO tracker.roles (role_key, role_name, description, active, system_role, created_at, updated_at)
+VALUES
+    ('COMPANY_ADMIN', 'Company Admin', 'Manages one company and its users, projects, and configuration', true, true, NOW(), NOW()),
+    ('PROJECT_ADMIN', 'Project Admin', 'Manages assigned projects within one company', true, true, NOW(), NOW()),
+    ('USER', 'User', 'Creates and manages assigned tickets within one company', true, true, NOW(), NOW()),
+    ('GLOBAL_ADMIN', 'Global Admin', 'Manages the SupportFlow platform, companies, subscriptions, and billing', true, true, NOW(), NOW())
+ON CONFLICT (role_key) DO NOTHING;
 
 CREATE TABLE IF NOT EXISTS tracker.permissions (
     id BIGSERIAL PRIMARY KEY,
@@ -618,7 +730,7 @@ ON CONFLICT (department_code) DO UPDATE SET
     updated_at = NOW();
 
 INSERT INTO tracker.roles (role_key, role_name, description, active, system_role, created_at, updated_at)
-VALUES ('SUPER_ADMIN', 'Super Admin', 'Full access role', true, true, NOW(), NOW())
+VALUES ('GLOBAL_ADMIN', 'Global Admin', 'Full platform access role', true, true, NOW(), NOW())
 ON CONFLICT (role_key) DO UPDATE SET
     role_name = EXCLUDED.role_name,
     active = true,
@@ -626,7 +738,7 @@ ON CONFLICT (role_key) DO UPDATE SET
     updated_at = NOW();
 
 INSERT INTO tracker.permissions (permission_key, permission_name, module_name, description, active, created_at, updated_at)
-VALUES ('SUPER_ADMIN', 'Super Admin Access', 'SYSTEM', 'Global full access permission', true, NOW(), NOW())
+VALUES ('GLOBAL_ADMIN', 'Global Admin Access', 'SYSTEM', 'Global full access permission', true, NOW(), NOW())
 ON CONFLICT (permission_key) DO UPDATE SET
     permission_name = EXCLUDED.permission_name,
     active = true,
@@ -637,7 +749,7 @@ VALUES (
     'EMPADMIN',
     'System Administrator',
     'admin@project.local',
-    'SUPER_ADMIN',
+    'GLOBAL_ADMIN',
     true,
     NOW(),
     NOW(),
@@ -655,7 +767,7 @@ ON CONFLICT (email) DO UPDATE SET
 INSERT INTO tracker.user_roles (user_id, role_id, assigned_at, assigned_by, active)
 SELECT u.id, r.id, NOW(), u.id, true
 FROM tracker.users u
-JOIN tracker.roles r ON r.role_key = 'SUPER_ADMIN'
+JOIN tracker.roles r ON r.role_key = 'GLOBAL_ADMIN'
 WHERE u.email = 'admin@project.local'
 ON CONFLICT (user_id, role_id) DO UPDATE SET
     active = true,
@@ -664,40 +776,100 @@ ON CONFLICT (user_id, role_id) DO UPDATE SET
 INSERT INTO tracker.role_permissions (role_id, permission_id, granted_at, granted_by)
 SELECT r.id, p.id, NOW(), u.id
 FROM tracker.roles r
-JOIN tracker.permissions p ON p.permission_key = 'SUPER_ADMIN'
+JOIN tracker.permissions p ON p.permission_key = 'GLOBAL_ADMIN'
 JOIN tracker.users u ON u.email = 'admin@project.local'
-WHERE r.role_key = 'SUPER_ADMIN'
+WHERE r.role_key = 'GLOBAL_ADMIN'
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
 SELECT 'ADMIN_GET_ALL', 'GET', '/api/admin/**', p.id, true, NOW(), NOW()
 FROM tracker.permissions p
-WHERE p.permission_key = 'SUPER_ADMIN'
+WHERE p.permission_key = 'GLOBAL_ADMIN'
 ON CONFLICT (rule_name) DO UPDATE SET active = true, updated_at = NOW();
 
 INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
 SELECT 'ADMIN_POST_ALL', 'POST', '/api/admin/**', p.id, true, NOW(), NOW()
 FROM tracker.permissions p
-WHERE p.permission_key = 'SUPER_ADMIN'
+WHERE p.permission_key = 'GLOBAL_ADMIN'
 ON CONFLICT (rule_name) DO UPDATE SET active = true, updated_at = NOW();
 
 INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
 SELECT 'ADMIN_PUT_ALL', 'PUT', '/api/admin/**', p.id, true, NOW(), NOW()
 FROM tracker.permissions p
-WHERE p.permission_key = 'SUPER_ADMIN'
+WHERE p.permission_key = 'GLOBAL_ADMIN'
 ON CONFLICT (rule_name) DO UPDATE SET active = true, updated_at = NOW();
 
 INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
 SELECT 'ADMIN_DELETE_ALL', 'DELETE', '/api/admin/**', p.id, true, NOW(), NOW()
 FROM tracker.permissions p
-WHERE p.permission_key = 'SUPER_ADMIN'
+WHERE p.permission_key = 'GLOBAL_ADMIN'
 ON CONFLICT (rule_name) DO UPDATE SET active = true, updated_at = NOW();
 
 INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
 SELECT 'ADMIN_PATCH_ALL', 'PATCH', '/api/admin/**', p.id, true, NOW(), NOW()
 FROM tracker.permissions p
-WHERE p.permission_key = 'SUPER_ADMIN'
+WHERE p.permission_key = 'GLOBAL_ADMIN'
 ON CONFLICT (rule_name) DO UPDATE SET active = true, updated_at = NOW();
+
+-- Least-privilege tenant roles. Global Admin remains enforced separately by role.
+INSERT INTO tracker.permissions (permission_key, permission_name, module_name, description, active, created_at, updated_at)
+VALUES
+    ('COMPANY_ADMIN_ACCESS', 'Company Administration Access', 'TENANT', 'Manage users, projects, and tenant configuration', true, NOW(), NOW()),
+    ('PROJECT_ADMIN_ACCESS', 'Project Administration Access', 'PROJECT', 'Manage assigned project members, workflows, and tickets', true, NOW(), NOW()),
+    ('TICKET_USER_ACCESS', 'Ticket User Access', 'TICKETS', 'Create, update owned, and view tenant tickets', true, NOW(), NOW())
+ON CONFLICT (permission_key) DO UPDATE SET active = true, updated_at = NOW();
+
+INSERT INTO tracker.role_permissions (role_id, permission_id, granted_at)
+SELECT r.id, p.id, NOW()
+FROM tracker.roles r
+JOIN tracker.permissions p ON (r.role_key = 'COMPANY_ADMIN' AND p.permission_key IN ('COMPANY_ADMIN_ACCESS', 'PROJECT_ADMIN_ACCESS', 'TICKET_USER_ACCESS'))
+    OR (r.role_key = 'PROJECT_ADMIN' AND p.permission_key IN ('PROJECT_ADMIN_ACCESS', 'TICKET_USER_ACCESS'))
+    OR (r.role_key = 'USER' AND p.permission_key = 'TICKET_USER_ACCESS')
+ON CONFLICT (role_id, permission_id) DO NOTHING;
+
+INSERT INTO tracker.api_permission_rules (rule_name, http_method, path_pattern, permission_id, active, created_at, updated_at)
+SELECT rule_name, http_method, path_pattern, p.id, true, NOW(), NOW()
+FROM (VALUES
+    ('COMPANY_USERS_GET', 'GET', '/api/users/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_USERS_POST', 'POST', '/api/users/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_USERS_PUT', 'PUT', '/api/users/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_USERS_DELETE', 'DELETE', '/api/users/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_PROJECTS_POST', 'POST', '/api/projects/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_PROJECTS_PUT', 'PUT', '/api/projects/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_PROJECTS_DELETE', 'DELETE', '/api/projects/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ORGANIZATION_GET', 'GET', '/api/admin/organization/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ORGANIZATION_POST', 'POST', '/api/admin/organization/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ORGANIZATION_PUT', 'PUT', '/api/admin/organization/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ORGANIZATION_DELETE', 'DELETE', '/api/admin/organization/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ROLE_ASSIGN', 'POST', '/api/admin/roles/assignments/users', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ROLE_UNASSIGN', 'DELETE', '/api/admin/roles/assignments/users/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_ROLE_GET', 'GET', '/api/admin/roles/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_MEMBERS_GET', 'GET', '/api/admin/project-members/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_MEMBERS_POST', 'POST', '/api/admin/project-members/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_MEMBERS_PUT', 'PUT', '/api/admin/project-members/**', 'COMPANY_ADMIN_ACCESS'),
+    ('COMPANY_MEMBERS_DELETE', 'DELETE', '/api/admin/project-members/**', 'COMPANY_ADMIN_ACCESS'),
+    ('PROJECT_MEMBERS_GET', 'GET', '/api/admin/project-members/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_MEMBERS_POST', 'POST', '/api/admin/project-members/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_MEMBERS_PUT', 'PUT', '/api/admin/project-members/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_MEMBERS_DELETE', 'DELETE', '/api/admin/project-members/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_WORKFLOWS_GET', 'GET', '/api/admin/workflows/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_WORKFLOWS_POST', 'POST', '/api/admin/workflows/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_WORKFLOWS_PUT', 'PUT', '/api/admin/workflows/**', 'PROJECT_ADMIN_ACCESS'),
+    ('PROJECT_WORKFLOWS_DELETE', 'DELETE', '/api/admin/workflows/**', 'PROJECT_ADMIN_ACCESS'),
+    ('TICKETS_READ', 'GET', '/api/projects/**', 'TICKET_USER_ACCESS'),
+    ('TASKS_READ', 'GET', '/api/tasks/**', 'TICKET_USER_ACCESS'),
+    ('TASKS_CREATE', 'POST', '/api/tasks', 'TICKET_USER_ACCESS'),
+    ('TASKS_UPDATE', 'PUT', '/api/tasks/**', 'TICKET_USER_ACCESS'),
+    ('TASKS_COMMENT', 'POST', '/api/tasks/*/comments', 'TICKET_USER_ACCESS'),
+    ('TASKS_ATTACHMENT', 'POST', '/api/attachments/task/**', 'TICKET_USER_ACCESS')
+) AS rules(rule_name, http_method, path_pattern, permission_key)
+JOIN tracker.permissions p ON p.permission_key = rules.permission_key
+ON CONFLICT (rule_name) DO UPDATE SET
+    http_method = EXCLUDED.http_method,
+    path_pattern = EXCLUDED.path_pattern,
+    permission_id = EXCLUDED.permission_id,
+    active = true,
+    updated_at = NOW();
 
 INSERT INTO tracker.task_statuses (status_key, status_name, description, display_order, color_code, is_terminal, active, created_at, updated_at)
 VALUES
@@ -880,7 +1052,7 @@ SELECT (SELECT id FROM wf), (SELECT id FROM st_blocked), (SELECT id FROM st_prog
 ON CONFLICT (workflow_id, transition_key) DO UPDATE SET active = true, updated_at = NOW();
 
 WITH role_admin AS (
-    SELECT id FROM tracker.roles WHERE role_key = 'SUPER_ADMIN'
+    SELECT id FROM tracker.roles WHERE role_key = 'GLOBAL_ADMIN'
 ),
 all_transitions AS (
     SELECT id FROM tracker.workflow_transitions

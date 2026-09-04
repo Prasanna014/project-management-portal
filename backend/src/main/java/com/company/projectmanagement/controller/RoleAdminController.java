@@ -7,6 +7,9 @@ import com.company.projectmanagement.dto.RoleResponseDto;
 import com.company.projectmanagement.dto.UserRoleAssignmentRequestDto;
 import com.company.projectmanagement.dto.UserRoleAssignmentResponseDto;
 import com.company.projectmanagement.service.RoleAdminService;
+import com.company.projectmanagement.repository.RoleRepository;
+import com.company.projectmanagement.repository.UserRepository;
+import com.company.projectmanagement.security.TenantAccessService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -25,6 +28,9 @@ import java.util.Map;
 public class RoleAdminController {
 
     private final RoleAdminService service;
+    private final RoleRepository roleRepository;
+    private final UserRepository userRepository;
+    private final TenantAccessService tenantAccessService;
 
     @GetMapping
     public ResponseEntity<Map<String, Object>> getRoles(
@@ -78,6 +84,7 @@ public class RoleAdminController {
     public ResponseEntity<UserRoleAssignmentResponseDto> assignRoleToUser(
             @Valid @RequestBody UserRoleAssignmentRequestDto request
     ) {
+        ensureCompanyAdminAssignmentAllowed(request.getUserId(), request.getRoleId());
         return ResponseEntity.ok(service.assignRoleToUser(request));
     }
 
@@ -86,6 +93,7 @@ public class RoleAdminController {
             @PathVariable Long userId,
             @PathVariable Long roleId
     ) {
+        ensureCompanyAdminAssignmentAllowed(userId, roleId);
         service.removeRoleFromUser(userId, roleId);
         return ResponseEntity.noContent().build();
     }
@@ -114,5 +122,15 @@ public class RoleAdminController {
     @GetMapping("/assignments/permissions/{roleId}")
     public ResponseEntity<List<RolePermissionAssignmentResponseDto>> getRolePermissions(@PathVariable Long roleId) {
         return ResponseEntity.ok(service.getRolePermissions(roleId));
+    }
+
+    private void ensureCompanyAdminAssignmentAllowed(Long userId, Long roleId) {
+        if (tenantAccessService.isPlatformAdmin()) return;
+        Long companyId = tenantAccessService.currentCompanyIdOrThrow();
+        boolean userIsInCompany = userRepository.findByIdAndCompanyId(userId, companyId).isPresent();
+        String roleKey = roleRepository.findById(roleId).map(role -> role.getRoleKey()).orElse("");
+        if (!userIsInCompany || !("PROJECT_ADMIN".equals(roleKey) || "USER".equals(roleKey))) {
+            throw new org.springframework.security.access.AccessDeniedException("Company Admin may assign only Project Admin or User roles within their company");
+        }
     }
 }

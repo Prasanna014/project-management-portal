@@ -10,11 +10,13 @@ import com.company.projectmanagement.entity.WorkflowState;
 import com.company.projectmanagement.exception.BadRequestException;
 import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.ProjectRepository;
+import com.company.projectmanagement.repository.ProjectMemberRepository;
 import com.company.projectmanagement.repository.TaskCategoryRepository;
 import com.company.projectmanagement.repository.TaskPriorityRepository;
 import com.company.projectmanagement.repository.TaskRepository;
 import com.company.projectmanagement.repository.TaskStatusRepository;
 import com.company.projectmanagement.repository.WorkflowStateRepository;
+import com.company.projectmanagement.security.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -36,10 +38,16 @@ public class TaskService {
     private final TaskCategoryRepository taskCategoryRepository;
     private final WorkflowStateRepository workflowStateRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final TenantAccessService tenantAccessService;
 
     /* ================= GET ALL ================= */
     public List<TaskDto> getAllTasks() {
-        return taskRepository.findAll()
+        List<Task> tasks = tenantAccessService.isPlatformAdmin()
+            ? taskRepository.findAll()
+            : taskRepository.findByCompanyId(tenantAccessService.currentCompanyIdOrThrow());
+        return tasks.stream()
+            .filter(this::canAccessTask)
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -47,15 +55,16 @@ public class TaskService {
 
     /* ================= GET BY ID ================= */
     public TaskDto getTaskById(Long id) {
-        Task task = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        Task task = findTask(id);
         return mapToDto(task);
     }
 
     /* ================= CREATE ================= */
     @Transactional
     public TaskDto createTask(TaskDto dto) {
+        Long companyId = requireProjectAccess(dto.getProjectId());
         Task task = mapToEntity(dto);
+        task.setCompanyId(companyId);
         Task saved = taskRepository.save(task);
         return mapToDto(saved);
     }
@@ -63,14 +72,15 @@ public class TaskService {
     /* ================= UPDATE ================= */
     @Transactional
     public TaskDto updateTask(Long id, TaskDto dto, Long actingUserId, boolean canManageAllTasks) {
-        Task existing = taskRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        Task existing = findTask(id);
         ensureTaskUpdateAccess(existing, actingUserId, canManageAllTasks);
+        Long companyId = requireProjectAccess(dto.getProjectId());
 
         ResolvedTaskCatalog resolved = resolveCatalogValues(dto, true);
 
         existing.setTaskNo(dto.getTaskNo());
         existing.setProjectId(dto.getProjectId());
+        existing.setCompanyId(companyId);
         existing.setIssueActionItem(dto.getIssueActionItem());
         existing.setDescription(dto.getDescription());
         existing.setPriorityId(resolved.priorityId());
@@ -172,7 +182,7 @@ public class TaskService {
     // Looks up the project's assigned workflow and returns its initial state id
     private Long resolveInitialWorkflowStateForProject(Long projectId) {
         if (projectId == null) return null;
-        return projectRepository.findById(projectId)
+        return findProject(projectId)
                 .map(p -> p.getWorkflowId())
                 .flatMap(wfId -> workflowStateRepository.findByWorkflowIdAndInitialTrue(wfId))
                 .map(WorkflowState::getId)
@@ -259,5 +269,45 @@ public class TaskService {
             Long categoryId,
             Long workflowStateId
     ) {
+    }
+
+    private Task findTask(Long id) {
+        if (tenantAccessService.isPlatformAdmin()) {
+            return taskRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        }
+        Task task = taskRepository.findByIdAndCompanyId(id, tenantAccessService.currentCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + id));
+        if (!canAccessTask(task)) {
+            throw new ResourceNotFoundException("Task not found with id: " + id);
+        }
+        return task;
+    }
+
+    private com.company.projectmanagement.entity.Project findProject(Long id) {
+        if (tenantAccessService.isPlatformAdmin()) {
+            return projectRepository.findById(id)
+                    .orElseThrow(() -> new BadRequestException("Invalid projectId: " + id));
+        }
+        return projectRepository.findByIdAndCompanyId(id, tenantAccessService.currentCompanyIdOrThrow())
+                .orElseThrow(() -> new BadRequestException("Invalid projectId: " + id));
+    }
+
+    private Long requireProjectAccess(Long projectId) {
+        if (projectId == null) {
+            throw new BadRequestException("Project is required");
+        }
+        return findProject(projectId).getCompanyId();
+    }
+
+    private boolean canAccessTask(Task task) {
+        if (tenantAccessService.isPlatformAdmin() || tenantAccessService.hasRole("COMPANY_ADMIN")) {
+            return true;
+        }
+        Long userId = tenantAccessService.currentUserIdOrThrow();
+        if (tenantAccessService.hasRole("PROJECT_ADMIN")) {
+            return projectMemberRepository.existsByProjectIdAndUserIdAndActiveTrue(task.getProjectId(), userId);
+        }
+        return Objects.equals(task.getOwnerId(), userId) || Objects.equals(task.getCreatedBy(), userId);
     }
 }

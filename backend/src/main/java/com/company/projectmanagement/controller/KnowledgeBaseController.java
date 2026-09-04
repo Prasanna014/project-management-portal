@@ -38,8 +38,8 @@ public class KnowledgeBaseController {
             "ALL_PERMISSIONS",
             "ADMIN",
             "ROLE_ADMIN",
-            "SUPER_ADMIN",
-            "ROLE_SUPER_ADMIN"
+            "GLOBAL_ADMIN",
+            "ROLE_GLOBAL_ADMIN"
     );
 
     private final KnowledgeBaseService service;

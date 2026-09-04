@@ -7,6 +7,7 @@ import java.util.Collection;
 
 public record SecurityUserPrincipal(
         Long userId,
+    Long companyId,
         String username,
         String password,
         Collection<? extends GrantedAuthority> authorities,

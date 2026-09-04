@@ -13,6 +13,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmail(String email);
 
+    Optional<User> findByIdAndCompanyId(Long id, Long companyId);
+
     Optional<User> findByEmailAndActiveTrue(String email);
 
     Optional<User> findByEmployeeId(String employeeId);
@@ -22,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByPasswordResetToken(String passwordResetToken);
 
     List<User> findByActive(Boolean active);
+
+    List<User> findByCompanyId(Long companyId);
 
     List<User> findByFullNameContainingIgnoreCase(String fullName);
 }

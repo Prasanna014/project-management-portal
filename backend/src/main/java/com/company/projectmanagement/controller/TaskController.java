@@ -29,8 +29,12 @@ public class TaskController {
             "ALL_PERMISSIONS",
             "ADMIN",
             "ROLE_ADMIN",
-            "SUPER_ADMIN",
-            "ROLE_SUPER_ADMIN"
+            "COMPANY_ADMIN",
+            "ROLE_COMPANY_ADMIN",
+            "PROJECT_ADMIN",
+            "ROLE_PROJECT_ADMIN",
+            "GLOBAL_ADMIN",
+            "ROLE_GLOBAL_ADMIN"
     );
 
     private final TaskService taskService;

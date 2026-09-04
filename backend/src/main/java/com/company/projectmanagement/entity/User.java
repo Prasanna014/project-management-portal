@@ -27,6 +27,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "company_id")
+    private Long companyId;
+
     @Column(name = "employee_id", nullable = false, unique = true)
     @NotBlank
     @Size(max = 255)

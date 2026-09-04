@@ -49,7 +49,7 @@ import {
   TaskRounded,
   ViewKanbanRounded,
 } from "@mui/icons-material";
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { NavLink, Outlet, useLocation, useNavigate, useParams } from "react-router-dom";
 import type { SvgIconComponent } from "@mui/icons-material";
 import { administrationNavigation, mainNavigation } from "@app/router/navigation";
 import { useAuth } from "@features/auth/context/AuthContext";
@@ -112,6 +112,7 @@ function QuickResultIcon({ icon }: { icon: QuickSearchItem["icon"] }) {
 export function AppShell() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { companySlug, projectSlug } = useParams();
   const { user, logout, hasAnyPermission } = useAuth();
   const { preferences, updatePreferences, addRecentSearch } = usePreferences();
   const [adminExpanded, setAdminExpanded] = useState(true);
@@ -159,7 +160,9 @@ export function AppShell() {
     Settings: SettingsRounded,
   };
 
-  const isMainItemSelected = (to: string) => (to === "/" ? location.pathname === "/" : location.pathname.startsWith(to));
+  const tenantBasePath = companySlug && projectSlug ? `/${companySlug}/${projectSlug}` : "";
+  const scopedPath = (path: string) => `${tenantBasePath}${path}`;
+  const isMainItemSelected = (to: string) => location.pathname.startsWith(scopedPath(to));
 
   const sectionPermissionKey: Record<string, string> = {
     Dashboard: "dashboard",
@@ -176,6 +179,9 @@ export function AppShell() {
   };
 
   const hasSectionReadAccess = (label: string): boolean => {
+    if (label === "Platform") {
+      return hasAnyPermission(["GLOBAL_ADMIN", "ROLE_GLOBAL_ADMIN"]);
+    }
     if (label === "Settings" || label === "Profile") {
       return true;
     }
@@ -215,7 +221,7 @@ export function AppShell() {
     }
     setSearchOpen(false);
     setSearchValue("");
-    navigate(target);
+    navigate(scopedPath(target));
   };
 
   return (
@@ -277,7 +283,7 @@ export function AppShell() {
           </Stack>
         </MenuItem>
         <Divider />
-        <MenuItem onClick={() => { setProfileMenuAnchor(null); navigate("/profile"); }}>
+        <MenuItem onClick={() => { setProfileMenuAnchor(null); navigate(scopedPath("/profile")); }}>
           <ManageAccountsRounded fontSize="small" />
           <ListItemText sx={{ ml: 1.5 }}>Profile</ListItemText>
         </MenuItem>
@@ -329,7 +335,7 @@ export function AppShell() {
               <ListItemButton
                 key={item.to}
                 component={NavLink}
-                to={item.to}
+                to={scopedPath(item.to)}
                 selected={isMainItemSelected(item.to)}
                 sx={{
                   mx: 1,
@@ -362,7 +368,7 @@ export function AppShell() {
 
           {availableAdminModules.length > 0 ? (
             <ListItemButton
-              selected={location.pathname.startsWith("/administration")}
+              selected={location.pathname.startsWith(scopedPath("/administration"))}
               onClick={() => setAdminExpanded((value) => !value)}
               sx={{
                 mx: 1,
@@ -379,7 +385,7 @@ export function AppShell() {
               <AdminPanelSettingsRounded
                 fontSize="small"
                 style={{
-                  color: location.pathname.startsWith("/administration") ? "primary.main" : "text.secondary",
+                  color: location.pathname.startsWith(scopedPath("/administration")) ? "primary.main" : "text.secondary",
                 }}
               />
               {!drawerCollapsed ? <ListItemText primary="Administration" /> : null}
@@ -410,8 +416,8 @@ export function AppShell() {
                     <ListItemButton
                       key={navItem.key}
                       component={NavLink}
-                      to={navItem.to}
-                      selected={location.pathname.startsWith(navItem.to)}
+                      to={scopedPath(navItem.to)}
+                      selected={location.pathname.startsWith(scopedPath(navItem.to))}
                       sx={{
                         pl: 4,
                         mx: 1,
@@ -445,7 +451,7 @@ export function AppShell() {
             severity="warning"
             sx={{ mb: 2 }}
             action={
-              <Button color="inherit" size="small" onClick={() => navigate("/settings")}>
+              <Button color="inherit" size="small" onClick={() => navigate(scopedPath("/settings"))}>
                 Change Password
               </Button>
             }

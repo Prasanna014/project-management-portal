@@ -7,6 +7,7 @@ import com.company.projectmanagement.exception.ResourceNotFoundException;
 import com.company.projectmanagement.repository.DepartmentRepository;
 import com.company.projectmanagement.repository.UserRepository;
 import com.company.projectmanagement.security.SecurityUserPrincipal;
+import com.company.projectmanagement.security.TenantAccessService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
@@ -43,13 +44,17 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditLogService auditLogService;
+    private final TenantAccessService tenantAccessService;
     private final SecureRandom secureRandom = new SecureRandom();
 
     @Value("${app.frontend-base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
     public List<UserDto> getAllUsers() {
-        return repository.findAll()
+        List<User> users = tenantAccessService.isPlatformAdmin()
+            ? repository.findAll()
+            : repository.findByCompanyId(tenantAccessService.currentCompanyIdOrThrow());
+        return users
                 .stream()
                 .map(this::mapToDto)
                 .collect(Collectors.toList());
@@ -57,8 +62,7 @@ public class UserService {
 
     public UserDto getUserById(Long id) {
         Long userId = Objects.requireNonNull(id, "User id is required");
-        User user = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        User user = findScopedUser(userId);
         return mapToDto(user);
     }
 
@@ -73,6 +77,7 @@ public class UserService {
         validateReferences(dto.getDepartmentId(), dto.getReportingManagerId(), null);
 
         User entity = mapToEntity(dto);
+        entity.setCompanyId(resolveAssignedCompanyId(dto.getCompanyId()));
         entity.setActive(false);
         entity.setPasswordChangeRequired(true);
         entity.setAccountStatus(STATUS_INVITED);
@@ -90,8 +95,7 @@ public class UserService {
         Long userId = Objects.requireNonNull(id, "User id is required");
         validateCreateRequest(dto);
 
-        User existing = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        User existing = findScopedUser(userId);
 
         validateUniqueIdentifiers(dto.getEmail(), dto.getEmployeeId(), userId);
         validateReferences(dto.getDepartmentId(), dto.getReportingManagerId(), userId);
@@ -117,8 +121,7 @@ public class UserService {
     @Transactional
     public void deleteUser(Long id) {
         Long userId = Objects.requireNonNull(id, "User id is required");
-        User user = repository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        User user = findScopedUser(userId);
         String previousState = describeUser(user);
         repository.deleteById(userId);
         auditLogService.record(AUDIT_ENTITY_TYPE, userId, "USER_DELETED", previousState, null, currentActorUserId(),
@@ -301,6 +304,7 @@ public class UserService {
     private UserDto mapToDto(User user, String emailDeliveryStatus) {
         return UserDto.builder()
                 .id(user.getId())
+                .companyId(user.getCompanyId())
                 .employeeId(user.getEmployeeId())
                 .fullName(user.getFullName())
                 .email(user.getEmail())
@@ -327,6 +331,7 @@ public class UserService {
     private User mapToEntity(UserDto dto) {
         return User.builder()
                 .id(dto.getId())
+                .companyId(dto.getCompanyId())
                 .employeeId(dto.getEmployeeId())
                 .fullName(dto.getFullName())
                 .email(dto.getEmail())
@@ -349,6 +354,21 @@ public class UserService {
         Long userId = Objects.requireNonNull(id, "User id is required");
         return repository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+    }
+
+    private User findScopedUser(Long id) {
+        if (tenantAccessService.isPlatformAdmin()) {
+            return findUser(id);
+        }
+        return repository.findByIdAndCompanyId(id, tenantAccessService.currentCompanyIdOrThrow())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+    }
+
+    private Long resolveAssignedCompanyId(Long requestedCompanyId) {
+        if (tenantAccessService.isPlatformAdmin()) {
+            return requestedCompanyId;
+        }
+        return tenantAccessService.currentCompanyIdOrThrow();
     }
 
     private void validateCreateRequest(UserDto dto) {
